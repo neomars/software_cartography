@@ -106,6 +106,20 @@ const Visualization = () => {
                 sprite.position.y = radius * 0.8;
                 group.add(sprite);
             }
+
+        // Add a semi-transparent sphere for the service
+        const sphere = new THREE.Mesh(
+            new THREE.SphereGeometry(node.radius || 40, 32, 32),
+            new THREE.MeshPhongMaterial({
+                color: node.color || '#3b82f6',
+                transparent: true,
+                opacity: 0.1,
+                shininess: 100,
+                side: THREE.DoubleSide
+            })
+        );
+        group.add(sphere);
+
             return group;
         } else {
             if (showLogos && node.logo) {
