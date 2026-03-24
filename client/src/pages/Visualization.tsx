@@ -10,13 +10,15 @@ const Visualization = () => {
     const [graphData, setGraphData] = useState<{ nodes: any[], links: any[] }>({ nodes: [], links: [] });
     const [loading, setLoading] = useState(true);
     const [showLogos, setShowLogos] = useState(true);
+    const [linkOpacity, setLinkOpacity] = useState(60);
     const fgRef = useRef<any>(null);
 
     const loadData = useCallback(async () => {
         setLoading(true);
         try {
             const res = await getAllData();
-            const { softwares, services } = res.data;
+            const { softwares, services, settings } = res.data;
+            if (settings && settings.linkOpacity !== undefined) setLinkOpacity(settings.linkOpacity);
             const nodes: any[] = [];
             const links: any[] = [];
 
@@ -106,6 +108,7 @@ const Visualization = () => {
                 sprite.position.y = radius * 0.8;
                 group.add(sprite);
             }
+
             return group;
         } else {
             if (showLogos && node.logo) {
@@ -142,7 +145,10 @@ const Visualization = () => {
                 graphData={graphData}
                 nodeThreeObject={nodeObject}
                 linkWidth={(link: any) => link.isSoftwareLink || link.isServiceLink ? 3 : 1}
-                linkColor={(link: any) => link.isSoftwareLink || link.isServiceLink ? '#ffffff66' : '#ffffff22'}
+                linkColor={(link: any) => {
+                    const alpha = Math.round((linkOpacity / 100) * 255).toString(16).padStart(2, '0');
+                    return link.isSoftwareLink || link.isServiceLink ? `#ffffff${alpha}` : `#ffffff${Math.round((linkOpacity / 100) * 0.3 * 255).toString(16).padStart(2, '0')}`;
+                }}
                 linkDirectionalParticles={2}
                 linkDirectionalParticleSpeed={0.005}
                 backgroundColor="#050505"
