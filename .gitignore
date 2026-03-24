@@ -1,0 +1,8 @@
+node_modules/
+client/node_modules/
+.angular/
+.cache/
+dist/
+build/
+*.pack
+*.log
