@@ -2490,6 +2490,7 @@
     }
   ],
   "settings": {
-    "appName": "Cartographie des applications DDPN22"
+    "appName": "Cartographie des applications DDPN22",
+    "linkOpacity": 50
   }
 }
