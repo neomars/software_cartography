@@ -47,7 +47,8 @@ const translations = {
         },
         settings: {
             title: "Paramètres de l'application",
-            appName: "Nom de l'application"
+            appName: "Nom de l'application",
+            linkOpacity: "Opacité des liens (%)"
         }
     },
     en: {
@@ -96,7 +97,8 @@ const translations = {
         },
         settings: {
             title: "Application Settings",
-            appName: "Application Name"
+            appName: "Application Name",
+            linkOpacity: "Link Opacity (%)"
         }
     }
 };
