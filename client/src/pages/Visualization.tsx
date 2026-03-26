@@ -10,13 +10,15 @@ const Visualization = () => {
     const [graphData, setGraphData] = useState<{ nodes: any[], links: any[] }>({ nodes: [], links: [] });
     const [loading, setLoading] = useState(true);
     const [showLogos, setShowLogos] = useState(true);
+    const [linkOpacity, setLinkOpacity] = useState(60);
     const fgRef = useRef<any>(null);
 
     const loadData = useCallback(async () => {
         setLoading(true);
         try {
             const res = await getAllData();
-            const { softwares, services } = res.data;
+            const { softwares, services, settings } = res.data;
+            if (settings && settings.linkOpacity !== undefined) setLinkOpacity(settings.linkOpacity);
             const nodes: any[] = [];
             const links: any[] = [];
 
@@ -68,15 +70,15 @@ const Visualization = () => {
     useEffect(() => {
         if (fgRef.current) {
             // Increase link strength globally to keep nodes tight
-            fgRef.current.d3Force('link').strength(2);
+            fgRef.current.d3Force('link').strength(1);
             // Set link distances as defined in the data
-            fgRef.current.d3Force('link').distance((link: any) => link.distance || 30);
-            // Drastically reduce charge strength to avoid nodes pushing each other outside spheres
-            fgRef.current.d3Force('charge').strength(-30);
+            fgRef.current.d3Force('link').distance((link: any) => link.distance || 50);
+            // Adjust charge strength
+            fgRef.current.d3Force('charge').strength(-100);
             // Adjust center force
             fgRef.current.d3Force('center').strength(0.05);
             // Add many-body force to keep nodes within the same service closer
-            fgRef.current.d3Force('charge').distanceMax(150);
+            fgRef.current.d3Force('charge').distanceMax(500);
         }
     }, [graphData]);
 
@@ -106,6 +108,7 @@ const Visualization = () => {
                 sprite.position.y = radius * 0.8;
                 group.add(sprite);
             }
+
             return group;
         } else {
             if (showLogos && node.logo) {
@@ -142,7 +145,11 @@ const Visualization = () => {
                 graphData={graphData}
                 nodeThreeObject={nodeObject}
                 linkWidth={(link: any) => link.isSoftwareLink || link.isServiceLink ? 3 : 1}
-                linkColor={(link: any) => link.isSoftwareLink || link.isServiceLink ? '#ffffff66' : '#ffffff22'}
+                linkColor={(link: any) => {
+                    const alpha = Math.round((linkOpacity / 100) * 255).toString(16).padStart(2, '0');
+                    // Ensure the color is #RRGGBBAA and visible
+                    return `#ffffff${alpha}`;
+                }}
                 linkDirectionalParticles={2}
                 linkDirectionalParticleSpeed={0.005}
                 backgroundColor="#050505"
