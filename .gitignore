@@ -6,3 +6,9 @@ dist/
 build/
 *.pack
 *.log
+
+# Files causing conflicts
+package-lock.json
+client/package-lock.json
+client/src/pages/Visualization.tsx
+package.json
