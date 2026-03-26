@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 const translations = {
     fr: {
         nav: {
-            viz: "Visualisation",
+            viz: "Visualisation 3D",
+            viz2d: "Visualisation 2D",
             softwares: "Logiciels",
             services: "Services",
             settings: "Paramètres",
@@ -53,7 +54,8 @@ const translations = {
     },
     en: {
         nav: {
-            viz: "Visualization",
+            viz: "3D Visualization",
+            viz2d: "2D Visualization",
             softwares: "Softwares",
             services: "Services",
             settings: "Settings",
