@@ -26,6 +26,7 @@ export interface Service {
 
 export interface Settings {
     appName: string;
+    linkOpacity: number;
 }
 
 export const getSoftwares = () => axios.get<Software[]>(`${API_BASE_URL}/softwares`);
