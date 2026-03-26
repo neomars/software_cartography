@@ -172,7 +172,7 @@ const Visualization = () => {
                 const glowMaterial = new THREE.MeshBasicMaterial({
                     color: node.color || '#3b82f6',
                     transparent: true,
-                    opacity: 0.5 * dimOpacity
+                    opacity: 0.3 * dimOpacity
                 });
                 group.add(new THREE.Mesh(glowGeometry, glowMaterial));
             }
@@ -202,20 +202,18 @@ const Visualization = () => {
                 const canvas = document.createElement('canvas');
                 const context = canvas.getContext('2d');
                 if (context) {
-                    canvas.width = 512; canvas.height = 128;
-                    context.font = isHighlighted ? 'Bold 80px Arial' : '60px Arial';
+                    canvas.width = 256; canvas.height = 64;
+                    context.font = isHighlighted ? 'Bold 40px Arial' : '30px Arial';
                     context.fillStyle = isHighlighted ? (node.color || '#ffffff') : 'white';
                     context.textAlign = 'center';
-                    context.fillText(node.name, 256, 96);
+                    context.fillText(node.name, 128, 48);
                     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
                         map: new THREE.CanvasTexture(canvas),
                         transparent: true,
-                        opacity: dimOpacity,
-                        depthTest: false
+                        opacity: dimOpacity
                     }));
-                    sprite.scale.set(isHighlighted ? 40 : 30, isHighlighted ? 10 : 7.5, 1);
-                    sprite.position.y = isHighlighted ? 15 : 10;
-                    sprite.renderOrder = 999;
+                    sprite.scale.set(isHighlighted ? 30 : 20, isHighlighted ? 7.5 : 5, 1);
+                    sprite.position.y = isHighlighted ? 12 : 8;
                     group.add(sprite);
                 }
                 return group;
