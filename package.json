@@ -1,13 +1,18 @@
 {
   "name": "logiciel-3d-viz",
   "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
   "scripts": {
     "start": "concurrently \"npm run start:server\" \"npm run start:client\"",
-    "start:server": "cd server && node index.js",
-    "start:client": "cd client && npm start",
-    "install:all": "npm install && cd server && npm install && cd ../client && npm install"
+    "start:server": "npm run start --workspace=server",
+    "start:client": "npm run start --workspace=client",
+    "install:all": "npm install"
   },
-  "devDependencies": {
+  "dependencies": {
     "concurrently": "^8.2.2"
   }
 }
