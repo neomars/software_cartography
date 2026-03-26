@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import ForceGraph3D from 'react-force-graph-3d';
 import * as THREE from 'three';
 import { getAllData } from '../api';
@@ -11,6 +11,10 @@ const Visualization = () => {
     const [loading, setLoading] = useState(true);
     const [showLogos, setShowLogos] = useState(true);
     const [linkOpacity, setLinkOpacity] = useState(60);
+    const [hoverNode, setHoverNode] = useState<any>(null);
+    const [selectedNode, setSelectedNode] = useState<any>(null);
+    const [highlightNodes, setHighlightNodes] = useState(new Set());
+    const [highlightLinks, setHighlightLinks] = useState(new Set());
     const fgRef = useRef<any>(null);
 
     const loadData = useCallback(async () => {
@@ -69,18 +73,61 @@ const Visualization = () => {
     useEffect(() => { loadData(); }, [loadData]);
     useEffect(() => {
         if (fgRef.current) {
-            // Increase link strength globally to keep nodes tight
             fgRef.current.d3Force('link').strength(1);
-            // Set link distances as defined in the data
             fgRef.current.d3Force('link').distance((link: any) => link.distance || 50);
-            // Adjust charge strength
             fgRef.current.d3Force('charge').strength(-100);
-            // Adjust center force
             fgRef.current.d3Force('center').strength(0.05);
-            // Add many-body force to keep nodes within the same service closer
             fgRef.current.d3Force('charge').distanceMax(500);
         }
     }, [graphData]);
+
+    const updateHighlight = (node: any) => {
+        setHighlightNodes(new Set());
+        setHighlightLinks(new Set());
+
+        if (node) {
+            const hNodes = new Set();
+            const hLinks = new Set();
+
+            const traverse = (nodeId: string, visited: Set<string>) => {
+                if (visited.has(nodeId)) return;
+                visited.add(nodeId);
+                hNodes.add(nodeId);
+
+                graphData.links.forEach(link => {
+                    const sId = typeof link.source === 'object' ? link.source.id : link.source;
+                    const tId = typeof link.target === 'object' ? link.target.id : link.target;
+
+                    if (sId === nodeId) {
+                        hLinks.add(link);
+                        traverse(tId, visited);
+                    } else if (tId === nodeId) {
+                        hLinks.add(link);
+                        traverse(sId, visited);
+                    }
+                });
+            };
+
+            traverse(node.id, new Set());
+            setHighlightNodes(hNodes);
+            setHighlightLinks(hLinks);
+        }
+    };
+
+    const handleNodeClick = useCallback((node: any) => {
+        // Aim at node from outside it
+        const distance = 150;
+        const distRatio = 1 + distance / Math.hypot(node.x, node.y, node.z);
+
+        fgRef.current.cameraPosition(
+            { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio }, // new pos
+            node, // lookAt ({ x, y, z })
+            1500  // ms transition duration
+        );
+
+        setSelectedNode(node);
+        updateHighlight(node);
+    }, [graphData, fgRef]);
 
     const exportImage = () => {
         const canvas = document.querySelector('canvas');
@@ -93,43 +140,103 @@ const Visualization = () => {
     };
 
     const nodeObject = useCallback((node: any) => {
+        const isHighlighted = highlightNodes.has(node.id);
+        const anySelected = highlightNodes.size > 0;
+        const group = new THREE.Group();
+        const dimOpacity = anySelected && !isHighlighted ? 0.15 : 1.0;
+
         if (node.isService) {
-            const group = new THREE.Group();
             const radius = node.radius || 45;
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
             if (context) {
                 canvas.width = 512; canvas.height = 128;
-                context.font = 'Bold 60px Arial'; context.fillStyle = node.color || '#3b82f6'; context.textAlign = 'center';
+                context.font = 'Bold 60px Arial';
+                context.fillStyle = isHighlighted ? '#ffffff' : (node.color || '#3b82f6');
+                context.textAlign = 'center';
                 context.fillText(node.name, 256, 80);
-                const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas) }));
-                sprite.scale.set(radius * 1.5, radius * 0.4, 1);
-                // Position above elements
+
+                const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+                    map: new THREE.CanvasTexture(canvas),
+                    transparent: true,
+                    opacity: dimOpacity
+                }));
+                sprite.scale.set(radius * (isHighlighted ? 2 : 1.5), radius * (isHighlighted ? 0.6 : 0.4), 1);
                 sprite.position.y = radius * 0.8;
                 group.add(sprite);
+            }
+
+            // Glow effect for service
+            if (isHighlighted) {
+                const glowGeometry = new THREE.SphereGeometry(radius * 0.5);
+                const glowMaterial = new THREE.MeshBasicMaterial({
+                    color: node.color || '#3b82f6',
+                    transparent: true,
+                    opacity: 0.3 * dimOpacity
+                });
+                group.add(new THREE.Mesh(glowGeometry, glowMaterial));
             }
 
             return group;
         } else {
             if (showLogos && node.logo) {
-                const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.TextureLoader().load(`http://localhost:5000${node.logo}`) }));
-                sprite.scale.set(15, 15, 1); return sprite;
+                const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+                    map: new THREE.TextureLoader().load(`http://localhost:5000${node.logo}`),
+                    transparent: true,
+                    opacity: dimOpacity
+                }));
+                const scale = isHighlighted ? 25 : 15;
+                sprite.scale.set(scale, scale, 1);
+                return sprite;
             } else {
-                const group = new THREE.Group();
-                group.add(new THREE.Mesh(new THREE.SphereGeometry(5), new THREE.MeshLambertMaterial({ color: node.color || '#ffffff' })));
+                const geometry = new THREE.SphereGeometry(isHighlighted ? 8 : 5);
+                const material = new THREE.MeshLambertMaterial({
+                    color: node.color || '#ffffff',
+                    emissive: isHighlighted ? (node.color || '#ffffff') : '#000000',
+                    emissiveIntensity: isHighlighted ? 0.5 : 0,
+                    transparent: true,
+                    opacity: dimOpacity
+                });
+                group.add(new THREE.Mesh(geometry, material));
+
                 const canvas = document.createElement('canvas');
                 const context = canvas.getContext('2d');
                 if (context) {
                     canvas.width = 256; canvas.height = 64;
-                    context.font = '30px Arial'; context.fillStyle = 'white'; context.textAlign = 'center';
+                    context.font = isHighlighted ? 'Bold 40px Arial' : '30px Arial';
+                    context.fillStyle = isHighlighted ? (node.color || '#ffffff') : 'white';
+                    context.textAlign = 'center';
                     context.fillText(node.name, 128, 48);
-                    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas) }));
-                    sprite.scale.set(20, 5, 1); sprite.position.y = 8; group.add(sprite);
+                    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+                        map: new THREE.CanvasTexture(canvas),
+                        transparent: true,
+                        opacity: dimOpacity
+                    }));
+                    sprite.scale.set(isHighlighted ? 30 : 20, isHighlighted ? 7.5 : 5, 1);
+                    sprite.position.y = isHighlighted ? 12 : 8;
+                    group.add(sprite);
                 }
                 return group;
             }
         }
-    }, [showLogos]);
+    }, [showLogos, highlightNodes]);
+
+    const linkColor = useCallback((link: any) => {
+        const isHighlighted = highlightLinks.has(link);
+        const baseAlpha = isHighlighted ? 1.0 : (linkOpacity / 100);
+        const alpha = Math.round(baseAlpha * 255).toString(16).padStart(2, '0');
+
+        if (isHighlighted) {
+            // Bright white for highlighted links
+            return `#ffffff${alpha}`;
+        }
+
+        // Dim color if a node is selected but this link is not highlighted
+        const dimFactor = highlightNodes.size > 0 ? 0.2 : 1.0;
+        const dimAlphaNum = Math.round(baseAlpha * dimFactor * 255);
+        const dimAlpha = dimAlphaNum.toString(16).padStart(2, '0');
+        return `#ffffff${dimAlpha}`;
+    }, [highlightLinks, highlightNodes, linkOpacity]);
 
     return (
         <div className="h-screen w-full relative bg-[#050505]">
@@ -144,17 +251,23 @@ const Visualization = () => {
                 ref={fgRef}
                 graphData={graphData}
                 nodeThreeObject={nodeObject}
-                linkWidth={(link: any) => link.isSoftwareLink || link.isServiceLink ? 3 : 1}
-                linkColor={(link: any) => {
-                    const alpha = Math.round((linkOpacity / 100) * 255).toString(16).padStart(2, '0');
-                    // Ensure the color is #RRGGBBAA and visible
-                    return `#ffffff${alpha}`;
+                linkWidth={(link: any) => {
+                    const isHighlighted = highlightLinks.has(link);
+                    const baseWidth = link.isSoftwareLink || link.isServiceLink ? 3 : 1;
+                    return isHighlighted ? baseWidth * 2 : baseWidth;
                 }}
-                linkDirectionalParticles={2}
-                linkDirectionalParticleSpeed={0.005}
+                linkColor={linkColor}
+                linkDirectionalParticles={(link: any) => highlightLinks.has(link) ? 4 : 0}
+                linkDirectionalParticleSpeed={0.01}
+                linkDirectionalParticleWidth={4}
                 backgroundColor="#050505"
                 nodeLabel="name"
-                onNodeClick={(node: any) => { fgRef.current.cameraPosition({ x: node.x * 1.5, y: node.y * 1.5, z: node.z * 1.5 }, node, 1000); }}
+                onNodeClick={handleNodeClick}
+                onBackgroundClick={() => {
+                    setSelectedNode(null);
+                    setHighlightNodes(new Set());
+                    setHighlightLinks(new Set());
+                }}
                 rendererConfig={{ preserveDrawingBuffer: true }}
             />
         </div>

@@ -1,4 +1,4 @@
-# Logiciel de Visualisation 3D (Viz3D) / 3D Visualization Software
+# Cartographie Logicielle 2D & 3D / 2D & 3D cartography software
 
 [Français](#français) | [English](#english)
 
