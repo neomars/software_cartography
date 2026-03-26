@@ -6,19 +6,21 @@ import { Save } from 'lucide-react';
 const Settings = () => {
     const { t } = useTranslation();
     const [appName, setAppName] = useState('');
+    const [linkOpacity, setLinkOpacity] = useState(60);
     const [loading, setLoading] = useState(true);
     const [message, setMessage] = useState('');
 
     useEffect(() => {
         getSettings().then(res => {
             setAppName(res.data.appName);
+            setLinkOpacity(res.data.linkOpacity !== undefined ? res.data.linkOpacity : 60);
             setLoading(false);
         });
     }, []);
 
     const handleSave = async () => {
         try {
-            await updateSettings({ appName });
+            await updateSettings({ appName, linkOpacity: Number(linkOpacity) });
             setMessage(t('common.success'));
             // Refresh page to update header in App.tsx
             window.location.reload();
@@ -44,6 +46,20 @@ const Settings = () => {
                             value={appName}
                             onChange={(e) => setAppName(e.target.value)}
                             className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            {t('settings.linkOpacity')} ({linkOpacity}%)
+                        </label>
+                        <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={linkOpacity}
+                            onChange={(e) => setLinkOpacity(Number(e.target.value))}
+                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                         />
                     </div>
 
