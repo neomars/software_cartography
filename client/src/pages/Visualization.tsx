@@ -70,15 +70,15 @@ const Visualization = () => {
     useEffect(() => {
         if (fgRef.current) {
             // Increase link strength globally to keep nodes tight
-            fgRef.current.d3Force('link').strength(2);
+            fgRef.current.d3Force('link').strength(1);
             // Set link distances as defined in the data
-            fgRef.current.d3Force('link').distance((link: any) => link.distance || 30);
-            // Drastically reduce charge strength to avoid nodes pushing each other outside spheres
-            fgRef.current.d3Force('charge').strength(-30);
+            fgRef.current.d3Force('link').distance((link: any) => link.distance || 50);
+            // Adjust charge strength
+            fgRef.current.d3Force('charge').strength(-100);
             // Adjust center force
             fgRef.current.d3Force('center').strength(0.05);
             // Add many-body force to keep nodes within the same service closer
-            fgRef.current.d3Force('charge').distanceMax(150);
+            fgRef.current.d3Force('charge').distanceMax(500);
         }
     }, [graphData]);
 
@@ -108,19 +108,6 @@ const Visualization = () => {
                 sprite.position.y = radius * 0.8;
                 group.add(sprite);
             }
-
-        // Add a semi-transparent sphere for the service
-        const sphere = new THREE.Mesh(
-            new THREE.SphereGeometry(node.radius || 40, 32, 32),
-            new THREE.MeshPhongMaterial({
-                color: node.color || '#3b82f6',
-                transparent: true,
-                opacity: 0.1,
-                shininess: 100,
-                side: THREE.DoubleSide
-            })
-        );
-        group.add(sphere);
 
             return group;
         } else {
@@ -160,7 +147,8 @@ const Visualization = () => {
                 linkWidth={(link: any) => link.isSoftwareLink || link.isServiceLink ? 3 : 1}
                 linkColor={(link: any) => {
                     const alpha = Math.round((linkOpacity / 100) * 255).toString(16).padStart(2, '0');
-                    return link.isSoftwareLink || link.isServiceLink ? `#ffffff${alpha}` : `#ffffff${Math.round((linkOpacity / 100) * 0.3 * 255).toString(16).padStart(2, '0')}`;
+                    // Ensure the color is #RRGGBBAA and visible
+                    return `#ffffff${alpha}`;
                 }}
                 linkDirectionalParticles={2}
                 linkDirectionalParticleSpeed={0.005}
