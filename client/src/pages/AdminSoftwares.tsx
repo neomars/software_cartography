@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getSoftwares, getServices, deleteSoftware, importCSV, uploadLogo, Software, Service, createSoftware, updateSoftware } from '../api';
-import { Upload, Trash2, Edit, Plus, X } from 'lucide-react';
+import { Upload, Trash2, Edit, Plus, X, ArrowUpDown } from 'lucide-react';
 import { useTranslation } from '../i18n';
 
 const AdminSoftwares = () => {
@@ -8,6 +8,8 @@ const AdminSoftwares = () => {
     const [softwares, setSoftwares] = useState<Software[]>([]);
     const [services, setServices] = useState<Service[]>([]);
     const [expandedChildren, setExpandedChildren] = useState<Record<string, boolean>>({});
+    const [sortField, setSortField] = useState<'name' | 'service'>('name');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentSoftware, setCurrentSoftware] = useState<Partial<Software> | null>(null);
 
@@ -28,11 +30,47 @@ const AdminSoftwares = () => {
         else await createSoftware(data);
         setIsModalOpen(false); setCurrentSoftware(null); loadSoftwares();
     };
+
+    const handleParentChange = async (swId: string, parentId: string) => {
+        const sw = softwares.find(s => s.id === swId);
+        if (sw) {
+            await updateSoftware(swId, { ...sw, parent_id: parentId || null });
+            loadSoftwares();
+        }
+    };
     const toggleChild = (id: string) => {
         const children = currentSoftware?.children || [];
         if (children.includes(id)) setCurrentSoftware({ ...currentSoftware, children: children.filter(c => c !== id) });
         else setCurrentSoftware({ ...currentSoftware, children: [...children, id] });
     };
+
+    const handleSort = (field: 'name' | 'service') => {
+        if (sortField === field) {
+            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortOrder('asc');
+        }
+    };
+
+    const sortedSoftwares = [...softwares].sort((a, b) => {
+        let valA = '';
+        let valB = '';
+
+        if (sortField === 'name') {
+            valA = a.name.toLowerCase();
+            valB = b.name.toLowerCase();
+        } else {
+            const srvA = services.find(s => s.id === a.parent_id);
+            const srvB = services.find(s => s.id === b.parent_id);
+            valA = (srvA?.name || '').toLowerCase();
+            valB = (srvB?.name || '').toLowerCase();
+        }
+
+        if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+        if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+        return 0;
+    });
 
     return (
         <div className="p-8">
@@ -53,7 +91,24 @@ const AdminSoftwares = () => {
                     <thead className="bg-gray-50 border-b">
                         <tr>
                             <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">{t('common.logo')}</th>
-                            <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">{t('common.name')}</th>
+                            <th
+                                className="px-6 py-3 text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                                onClick={() => handleSort('name')}
+                            >
+                                <div className="flex items-center">
+                                    {t('common.name')}
+                                    <ArrowUpDown className="ml-1 w-3 h-3" />
+                                </div>
+                            </th>
+                            <th
+                                className="px-6 py-3 text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                                onClick={() => handleSort('service')}
+                            >
+                                <div className="flex items-center">
+                                    {t('nav.services')}
+                                    <ArrowUpDown className="ml-1 w-3 h-3" />
+                                </div>
+                            </th>
                             <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">{t('softwares.parent')}</th>
                             <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">{t('softwares.children')}</th>
                             <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">{t('common.description')}</th>
@@ -61,8 +116,9 @@ const AdminSoftwares = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                        {softwares.map(sw => {
+                        {sortedSoftwares.map(sw => {
                             const parent = services.find(s => s.id === sw.parent_id) || softwares.find(s => s.id === sw.parent_id);
+                            const isParentAService = services.some(s => s.id === sw.parent_id);
                             return (
                             <tr key={sw.id}>
                                 <td className="px-6 py-4">
@@ -72,7 +128,17 @@ const AdminSoftwares = () => {
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 font-medium">{sw.name}</td>
-                                <td className="px-6 py-4 text-sm text-gray-600">{parent?.name || '-'}</td>
+                                <td className="px-6 py-4">
+                                    <select
+                                        className="text-sm border rounded p-1"
+                                        value={(isParentAService ? sw.parent_id : '') || ''}
+                                        onChange={(e) => handleParentChange(sw.id, e.target.value)}
+                                    >
+                                        <option value="">{t('softwares.none')}</option>
+                                        {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                    </select>
+                                </td>
+                                <td className="px-6 py-4 text-sm text-gray-600">{!isParentAService && parent ? parent.name : '-'}</td>
                                 <td className="px-6 py-4 text-sm">
                                     {sw.children && sw.children.length > 0 ? (
                                         <div>

@@ -41,7 +41,10 @@ function readDB() {
 
 function writeDB(data) {
     console.log(`[DB] Writing to ${DATA_FILE}`);
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+    // Using stringify with null, 2 for readability.
+    // No special handling needed for unicode as JSON.stringify handles it,
+    // but we can ensure it's written as UTF-8.
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
 }
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
@@ -295,24 +298,50 @@ app.post('/api/import-csv', upload.single('file'), (req, res) => {
     if (!req.file) return res.status(400).send('No file uploaded');
     const results = [];
     fs.createReadStream(req.file.path)
-        .pipe(csv({ separator: ',' }))
+        .pipe(csv({
+            separator: ',',
+            mapHeaders: ({ header }) => header.trim(),
+            mapValues: ({ value }) => value.trim()
+        }))
         .on('data', (data) => results.push(data))
         .on('end', () => {
             const db = readDB();
             results.forEach(row => {
-                const name = row.Logiciels || 'Sans nom';
+                console.log('[Import] Processing row:', row);
+                const name = row.Logiciels || row.software || row.Logiciel || 'Sans nom';
                 const existingIndex = db.softwares.findIndex(s => s.name === name);
 
                 const isTrue = (val) => {
-                    if (typeof val !== 'string') return false;
-                    const v = val.toLowerCase().trim();
+                    if (!val) return false;
+                    const v = String(val).toLowerCase().trim();
                     return v === 'true' || v === 'oui' || v === '1' || v === 'vrai';
                 };
+
+                // Try to find parent service if specified
+                let parentId = existingIndex !== -1 ? db.softwares[existingIndex].parent_id : null;
+                const serviceName = row.Service || row.service;
+                if (serviceName) {
+                    const parentService = db.services.find(s => s.name.toLowerCase().trim() === serviceName.toLowerCase().trim());
+                    if (parentService) {
+                        const newParentId = parentService.id;
+                        // Cleanup: if the parent changed, remove from old parent
+                        if (parentId && parentId !== newParentId) {
+                            const oldParent = db.services.find(s => s.id === parentId);
+                            if (oldParent) {
+                                oldParent.children = (oldParent.children || []).filter(id => id !== (existingIndex !== -1 ? db.softwares[existingIndex].id : ''));
+                            }
+                        }
+                        parentId = newParentId;
+                        console.log(`[Import] Found parent service: ${parentService.name} (${parentId})`);
+                    } else {
+                        console.log(`[Import] Parent service not found: ${serviceName}`);
+                    }
+                }
 
                 const software = {
                     id: existingIndex !== -1 ? db.softwares[existingIndex].id : uuidv4(),
                     name: name,
-                    parent_id: existingIndex !== -1 ? db.softwares[existingIndex].parent_id : null,
+                    parent_id: parentId,
                     children: existingIndex !== -1 ? (db.softwares[existingIndex].children || []) : [],
                     acces: isTrue(row['Accès']),
                     description: row.Description || (existingIndex !== -1 ? db.softwares[existingIndex].description : ''),
@@ -326,6 +355,14 @@ app.post('/api/import-csv', upload.single('file'), (req, res) => {
                     db.softwares[existingIndex] = software;
                 } else {
                     db.softwares.push(software);
+                }
+
+                // Update parent service children list
+                if (parentId) {
+                    const parentService = db.services.find(s => s.id === parentId);
+                    if (parentService && !parentService.children.includes(software.id)) {
+                        parentService.children.push(software.id);
+                    }
                 }
             });
             writeDB(db);
