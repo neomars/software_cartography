@@ -11,7 +11,6 @@
       "ministere": "",
       "logo": null,
       "children": [
-        "ba96e433-9dd1-4517-9ec3-408f54d70cf5",
         "0ed65dc8-371c-4486-b690-7249e86b5698",
         "cf2fae44-d2d3-4d24-89ba-481adb462afa",
         "b175f3d4-6453-4858-851d-085a1c6ea320",
@@ -21,7 +20,7 @@
     {
       "id": "ba96e433-9dd1-4517-9ec3-408f54d70cf5",
       "name": "VEEAM",
-      "parent_id": "3a3e68e6-553d-4131-8e7a-3c10941d6730",
+      "parent_id": "36d8e1d1-0185-4143-83aa-bb5dd5f39bb7",
       "acces": false,
       "description": "Logiciel de sauvegarde",
       "intranet": "",
@@ -2220,7 +2219,9 @@
       "id": "36d8e1d1-0185-4143-83aa-bb5dd5f39bb7",
       "name": "Téléphonie fixe",
       "color": "#3b82f6",
-      "children": [],
+      "children": [
+        "ba96e433-9dd1-4517-9ec3-408f54d70cf5"
+      ],
       "parent_id": null
     },
     {
@@ -2490,6 +2491,7 @@
     }
   ],
   "settings": {
-    "appName": "Cartographie des applications DDPN22"
+    "appName": "Cartographie des applications DDPN22",
+    "linkOpacity": 50
   }
 }

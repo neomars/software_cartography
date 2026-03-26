@@ -1,0 +1,65 @@
+version: 2
+updates:
+  # 1. Dépendances du backend / racine (si tu as un package.json à la racine)
+  - package-ecosystem: "npm"
+    directory: "/"                  # ← racine du projet
+    schedule:
+      interval: "weekly"            # ou "daily" si tu veux plus fréquent
+      time: "08:00"                 # heure à laquelle Dependabot lance la vérif (UTC)
+      day: "monday"                 # optionnel : seulement le lundi
+    open-pull-requests-limit: 15
+    labels:
+      - "dependencies"
+      - "npm"
+      - "root"
+    groups:
+      production:
+        patterns:
+          - "*"                     # tout regrouper dans une seule PR (sauf si tu préfères séparé)
+      dev-dependencies:
+        patterns:
+          - "@types/*"
+          - "eslint*"
+          - "prettier*"
+        update-types: ["minor", "patch"]   # seulement les petites mises à jour pour les dev-deps
+
+  # 2. Dépendances du frontend (client/)
+  - package-ecosystem: "npm"
+    directory: "/client"            # ← dossier client
+    schedule:
+      interval: "weekly"
+      time: "08:00"
+    open-pull-requests-limit: 15
+    labels:
+      - "dependencies"
+      - "npm"
+      - "frontend"
+      - "react"
+    groups:
+      react-stack:
+        patterns:
+          - "react*"
+          - "next*"
+          - "@next*"
+          - "typescript"
+        update-types: ["minor", "patch"]
+      other-deps:
+        patterns:
+          - "*"
+
+  # 3. Dépendances du backend (server/)
+  - package-ecosystem: "npm"
+    directory: "/server"            # ← dossier server
+    schedule:
+      interval: "weekly"
+      time: "08:00"
+    open-pull-requests-limit: 15
+    labels:
+      - "dependencies"
+      - "npm"
+      - "backend"
+      - "express"
+    groups:
+      server-deps:
+        patterns:
+          - "*"
