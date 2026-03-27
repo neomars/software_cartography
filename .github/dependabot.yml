@@ -46,20 +46,3 @@ updates:
       other-deps:
         patterns:
           - "*"
-
-  # 3. Dépendances du backend (server/)
-  - package-ecosystem: "npm"
-    directory: "/server"            # ← dossier server
-    schedule:
-      interval: "weekly"
-      time: "08:00"
-    open-pull-requests-limit: 15
-    labels:
-      - "dependencies"
-      - "npm"
-      - "backend"
-      - "express"
-    groups:
-      server-deps:
-        patterns:
-          - "*"

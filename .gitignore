@@ -10,6 +10,3 @@ build/
 # Files causing conflicts
 package-lock.json
 client/package-lock.json
-
-# Local data files
-server/data/db.json
