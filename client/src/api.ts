@@ -6,6 +6,7 @@ export interface Software {
     id: string;
     name: string;
     parent_id: string | null;
+    parent_ids: string[];
     children: string[];
     acces: boolean;
     description: string;

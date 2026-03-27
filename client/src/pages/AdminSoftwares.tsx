@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { getSoftwares, getServices, deleteSoftware, importCSV, uploadLogo, Software, Service, createSoftware, updateSoftware } from '../api';
 import { Upload, Trash2, Edit, Plus, X, ArrowUpDown } from 'lucide-react';
 import { useTranslation } from '../i18n';
+import MultiSelect from '../components/MultiSelect';
 
 const AdminSoftwares = () => {
     const { t } = useTranslation();
@@ -25,7 +26,7 @@ const AdminSoftwares = () => {
     const handleLogoUpload = async (id: string, e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files && e.target.files[0]) { await uploadLogo('software', id, e.target.files[0]); loadSoftwares(); } };
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        const data = { ...currentSoftware, children: currentSoftware?.children || [] };
+        const data = { ...currentSoftware, children: currentSoftware?.children || [], parent_ids: currentSoftware?.parent_ids || [] };
         if (currentSoftware?.id) await updateSoftware(currentSoftware.id, data);
         else await createSoftware(data);
         setIsModalOpen(false); setCurrentSoftware(null); loadSoftwares();
@@ -81,7 +82,7 @@ const AdminSoftwares = () => {
                         <Upload className="mr-2 w-4 h-4" /> {t('common.import')}
                         <input type="file" className="hidden" accept=".csv" onChange={handleImport} />
                     </label>
-                    <button onClick={() => { setCurrentSoftware({}); setIsModalOpen(true); }} className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                    <button onClick={() => { setCurrentSoftware({ parent_ids: [], children: [] }); setIsModalOpen(true); }} className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
                         <Plus className="mr-2 w-4 h-4" /> {t('common.add')}
                     </button>
                 </div>
@@ -171,8 +172,8 @@ const AdminSoftwares = () => {
                 </table>
             </div>
             {isModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-lg w-full max-w-2xl p-6">
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+                    <div className="bg-white rounded-lg w-full max-w-2xl p-6 my-8">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-xl font-bold">{currentSoftware?.id ? t('common.edit') : t('common.add')}</h3>
                             <button onClick={() => setIsModalOpen(false)}><X className="w-6 h-6" /></button>
@@ -184,27 +185,22 @@ const AdminSoftwares = () => {
                             <div className="col-span-1"><label className="block text-sm font-medium">{t('softwares.access')}</label>
                             <input type="checkbox" className="mt-1 h-5 w-5 border rounded" checked={currentSoftware?.acces || false} onChange={e => setCurrentSoftware({...currentSoftware, acces: e.target.checked})} /></div>
 
-                            <div className="col-span-1"><label className="block text-sm font-medium">{t('softwares.parent')}</label>
-                            <select className="mt-1 block w-full border rounded p-2" value={currentSoftware?.parent_id || ''} onChange={e => setCurrentSoftware({...currentSoftware, parent_id: e.target.value || null})}>
-                                <option value="">{t('softwares.none')}</option>
-                                <optgroup label={t('nav.services')}>
-                                    {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                </optgroup>
-                                <optgroup label={t('nav.softwares')}>
-                                    {softwares.filter(sw => sw.id !== currentSoftware?.id).map(sw => <option key={sw.id} value={sw.id}>{sw.name}</option>)}
-                                </optgroup>
-                            </select></div>
+                            <div className="col-span-2"><label className="block text-sm font-medium mb-1">{t('softwares.parent')}</label>
+                                <MultiSelect
+                                    options={parentOptions.filter(o => o.id !== currentSoftware?.id)}
+                                    selected={currentSoftware?.parent_ids || (currentSoftware?.parent_id ? [currentSoftware.parent_id] : [])}
+                                    onChange={(ids) => setCurrentSoftware({...currentSoftware, parent_ids: ids, parent_id: ids.length > 0 ? ids[0] : null})}
+                                    placeholder={t('softwares.none')}
+                                />
+                            </div>
 
-                            <div className="col-span-2">
-                                <label className="block text-sm font-medium mb-2">{t('softwares.children')}</label>
-                                <div className="border rounded p-4 h-32 overflow-y-auto bg-gray-50">
-                                    {softwares.filter(sw => sw.id !== currentSoftware?.id).map(sw => (
-                                        <label key={sw.id} className="flex items-center space-x-2 cursor-pointer p-1 hover:bg-white">
-                                            <input type="checkbox" checked={currentSoftware?.children?.includes(sw.id) || false} onChange={() => toggleChild(sw.id)} />
-                                            <span className="text-sm">{sw.name}</span>
-                                        </label>
-                                    ))}
-                                </div>
+                            <div className="col-span-2"><label className="block text-sm font-medium mb-1">{t('softwares.children')}</label>
+                                <MultiSelect
+                                    options={softwares.filter(sw => sw.id !== currentSoftware?.id).map(sw => ({ id: sw.id, name: sw.name }))}
+                                    selected={currentSoftware?.children || []}
+                                    onChange={(ids) => setCurrentSoftware({...currentSoftware, children: ids})}
+                                    placeholder={t('softwares.none')}
+                                />
                             </div>
 
                             <div className="col-span-2"><label className="block text-sm font-medium">{t('common.description')}</label>
