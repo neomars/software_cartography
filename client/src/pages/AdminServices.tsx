@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { getServices, getSoftwares, deleteService, createService, updateService, Software, Service, uploadLogo } from '../api';
 import { Trash2, Edit, Plus, X } from 'lucide-react';
 import { useTranslation } from '../i18n';
 import { hexToHsl, hslToHex } from '../utils/colorUtils';
 
-const AdminServices = () => {
+const AdminServices: React.FC = () => {
     const { t } = useTranslation();
     const [services, setServices] = useState<Service[]>([]);
 
@@ -12,19 +12,35 @@ const AdminServices = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentService, setCurrentService] = useState<Partial<Service> | null>(null);
 
-    useEffect(() => { loadData(); }, []);
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         const [resServices, resSoftwares] = await Promise.all([getServices(), getSoftwares()]);
-        setServices(resServices.data); setSoftwares(resSoftwares.data);
+        setServices(resServices.data);
+        setSoftwares(resSoftwares.data);
+    }, []);
+
+    useEffect(() => { loadData(); }, [loadData]);
+
+    const handleDelete = async (id: string) => {
+        if (window.confirm(t('common.confirmDelete'))) {
+            await deleteService(id);
+            loadData();
+        }
     };
-    const handleDelete = async (id: string) => { if (window.confirm(t('common.confirmDelete'))) { await deleteService(id); loadData(); } };
-    const handleLogoUpload = async (id: string, e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files && e.target.files[0]) { await uploadLogo('service', id, e.target.files[0]); loadData(); } };
+
+    const handleLogoUpload = async (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            await uploadLogo('service', id, e.target.files[0]);
+            loadData();
+        }
+    };
+
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         if (currentService?.id) await updateService(currentService.id, currentService);
         else await createService(currentService || {});
         setIsModalOpen(false); setCurrentService(null); loadData();
     };
+
     const toggleChild = (id: string) => {
         const children = currentService?.children || [];
         if (children.includes(id)) setCurrentService({ ...currentService, children: children.filter(c => c !== id) });

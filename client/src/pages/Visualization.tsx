@@ -158,19 +158,27 @@ const Visualization = () => {
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
             if (context) {
-                canvas.width = 512; canvas.height = 128;
-                context.font = 'Bold 60px Arial';
+                const fontSize = 60;
+                context.font = `Bold ${fontSize}px Arial`;
+                const textWidth = context.measureText(node.name).width;
+                canvas.width = textWidth + 40;
+                canvas.height = fontSize + 20;
+
+                context.font = `Bold ${fontSize}px Arial`;
                 context.fillStyle = isHighlighted ? '#ffffff' : (node.color || '#3b82f6');
                 context.textAlign = 'center';
-                context.fillText(node.name, 256, 80);
+                context.textBaseline = 'middle';
+                context.fillText(node.name, canvas.width / 2, canvas.height / 2);
 
                 const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
                     map: new THREE.CanvasTexture(canvas),
                     transparent: true,
                     opacity: dimOpacity
                 }));
-                sprite.scale.set(radius * (isHighlighted ? 2 : 1.5), radius * (isHighlighted ? 0.6 : 0.4), 1);
-                sprite.position.y = radius * 0.8;
+                const aspectRatio = canvas.width / canvas.height;
+                const height = radius * (isHighlighted ? 0.8 : 0.6);
+                sprite.scale.set(height * aspectRatio, height, 1);
+                sprite.position.y = -radius * 1.2; // Position below
                 group.add(sprite);
             }
 
@@ -180,7 +188,7 @@ const Visualization = () => {
                 const glowMaterial = new THREE.MeshBasicMaterial({
                     color: node.color || '#3b82f6',
                     transparent: true,
-                    opacity: 0.3 * dimOpacity
+                    opacity: 0.5 * dimOpacity
                 });
                 group.add(new THREE.Mesh(glowGeometry, glowMaterial));
             }
@@ -210,18 +218,29 @@ const Visualization = () => {
                 const canvas = document.createElement('canvas');
                 const context = canvas.getContext('2d');
                 if (context) {
-                    canvas.width = 256; canvas.height = 64;
-                    context.font = isHighlighted ? 'Bold 40px Arial' : '30px Arial';
+                    const fontSize = isHighlighted ? 80 : 60;
+                    context.font = isHighlighted ? `Bold ${fontSize}px Arial` : `${fontSize}px Arial`;
+                    const textWidth = context.measureText(node.name).width;
+                    canvas.width = textWidth + 40;
+                    canvas.height = fontSize + 20;
+
+                    context.font = isHighlighted ? `Bold ${fontSize}px Arial` : `${fontSize}px Arial`;
                     context.fillStyle = isHighlighted ? (node.color || '#ffffff') : 'white';
                     context.textAlign = 'center';
-                    context.fillText(node.name, 128, 48);
+                    context.textBaseline = 'middle';
+                    context.fillText(node.name, canvas.width / 2, canvas.height / 2);
+
                     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
                         map: new THREE.CanvasTexture(canvas),
                         transparent: true,
-                        opacity: dimOpacity
+                        opacity: dimOpacity,
+                        depthTest: false
                     }));
-                    sprite.scale.set(isHighlighted ? 30 : 20, isHighlighted ? 7.5 : 5, 1);
-                    sprite.position.y = isHighlighted ? 12 : 8;
+                    const aspectRatio = canvas.width / canvas.height;
+                    const height = isHighlighted ? 12 : 9;
+                    sprite.scale.set(height * aspectRatio, height, 1);
+                    sprite.position.y = isHighlighted ? -15 : -10; // Position below
+                    sprite.renderOrder = 999;
                     group.add(sprite);
                 }
                 return group;

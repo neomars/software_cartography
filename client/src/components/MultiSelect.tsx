@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Check, ChevronDown, X } from 'lucide-react';
 
@@ -15,7 +14,7 @@ interface MultiSelectProps {
     placeholder?: string;
 }
 
-const MultiSelect = ({ options, selected, onChange, placeholder = "Select..." }: MultiSelectProps) => {
+const MultiSelect: React.FC<MultiSelectProps> = ({ options, selected, onChange, placeholder = "Select..." }) => {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 

@@ -28,12 +28,20 @@ const Visualization2D = () => {
 
             const getServiceColor = (nodeId: string) => {
                 let currentId: string | null = nodeId;
-                while (currentId) {
+                const visited = new Set();
+                while (currentId && !visited.has(currentId)) {
+                    visited.add(currentId);
                     if (serviceMap.has(currentId)) {
                         return serviceMap.get(currentId)?.color || '#3b82f6';
                     }
                     const sw = softwareMap.get(currentId);
-                    currentId = sw ? sw.parent_id : null;
+                    if (!sw) break;
+                    // Try parent_ids first, then fallback to parent_id
+                    if (sw.parent_ids && sw.parent_ids.length > 0) {
+                        currentId = sw.parent_ids[0];
+                    } else {
+                        currentId = sw.parent_id;
+                    }
                 }
                 return '#ffffff';
             };
