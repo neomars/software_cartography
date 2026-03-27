@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { getSoftwares, getServices, deleteSoftware, importCSV, uploadLogo, Software, Service, createSoftware, updateSoftware } from '../api';
 import { Upload, Trash2, Edit, Plus, X, ArrowUpDown } from 'lucide-react';
 import { useTranslation } from '../i18n';
