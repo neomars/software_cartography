@@ -32,16 +32,17 @@ const AdminSoftwares = () => {
         setIsModalOpen(false); setCurrentSoftware(null); loadSoftwares();
     };
 
-    const handleParentChange = async (swId: string, parentIds: string[]) => {
+    const handleParentChange = async (swId: string, parentId: string) => {
         const sw = softwares.find(s => s.id === swId);
         if (sw) {
-            await updateSoftware(swId, {
-                ...sw,
-                parent_ids: parentIds,
-                parent_id: parentIds.length > 0 ? parentIds[0] : null
-            });
+            await updateSoftware(swId, { ...sw, parent_id: parentId || null });
             loadSoftwares();
         }
+    };
+    const toggleChild = (id: string) => {
+        const children = currentSoftware?.children || [];
+        if (children.includes(id)) setCurrentSoftware({ ...currentSoftware, children: children.filter(c => c !== id) });
+        else setCurrentSoftware({ ...currentSoftware, children: [...children, id] });
     };
 
     const handleSort = (field: 'name' | 'service') => {
@@ -61,25 +62,16 @@ const AdminSoftwares = () => {
             valA = a.name.toLowerCase();
             valB = b.name.toLowerCase();
         } else {
-            const getFirstParentName = (sw: Software) => {
-                const pIds = sw.parent_ids || (sw.parent_id ? [sw.parent_id] : []);
-                if (pIds.length === 0) return '';
-                const p = services.find(s => s.id === pIds[0]) || softwares.find(s => s.id === pIds[0]);
-                return p?.name || '';
-            };
-            valA = getFirstParentName(a).toLowerCase();
-            valB = getFirstParentName(b).toLowerCase();
+            const srvA = services.find(s => s.id === a.parent_id);
+            const srvB = services.find(s => s.id === b.parent_id);
+            valA = (srvA?.name || '').toLowerCase();
+            valB = (srvB?.name || '').toLowerCase();
         }
 
         if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
         if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
         return 0;
     });
-
-    const parentOptions = [
-        ...services.map(s => ({ id: s.id, name: s.name, group: t('nav.services') })),
-        ...softwares.map(sw => ({ id: sw.id, name: sw.name, group: t('nav.softwares') }))
-    ];
 
     return (
         <div className="p-8">
@@ -114,10 +106,11 @@ const AdminSoftwares = () => {
                                 onClick={() => handleSort('service')}
                             >
                                 <div className="flex items-center">
-                                    {t('softwares.parent')}
+                                    {t('nav.services')}
                                     <ArrowUpDown className="ml-1 w-3 h-3" />
                                 </div>
                             </th>
+                            <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">{t('softwares.parent')}</th>
                             <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">{t('softwares.children')}</th>
                             <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">{t('common.description')}</th>
                             <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">{t('common.actions')}</th>
@@ -125,7 +118,8 @@ const AdminSoftwares = () => {
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                         {sortedSoftwares.map(sw => {
-                            const pIds = sw.parent_ids || (sw.parent_id ? [sw.parent_id] : []);
+                            const parent = services.find(s => s.id === sw.parent_id) || softwares.find(s => s.id === sw.parent_id);
+                            const isParentAService = services.some(s => s.id === sw.parent_id);
                             return (
                             <tr key={sw.id}>
                                 <td className="px-6 py-4">
@@ -135,23 +129,36 @@ const AdminSoftwares = () => {
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 font-medium">{sw.name}</td>
-                                <td className="px-6 py-4 min-w-[200px]">
-                                    <MultiSelect
-                                        options={parentOptions.filter(o => o.id !== sw.id)}
-                                        selected={pIds}
-                                        onChange={(ids) => handleParentChange(sw.id, ids)}
-                                        placeholder={t('softwares.none')}
-                                    />
+                                <td className="px-6 py-4">
+                                    <select
+                                        className="text-sm border rounded p-1"
+                                        value={(isParentAService ? sw.parent_id : '') || ''}
+                                        onChange={(e) => handleParentChange(sw.id, e.target.value)}
+                                    >
+                                        <option value="">{t('softwares.none')}</option>
+                                        {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                    </select>
                                 </td>
-                                <td className="px-6 py-4 min-w-[200px]">
-                                    <MultiSelect
-                                        options={softwares.filter(s => s.id !== sw.id).map(s => ({ id: s.id, name: s.name }))}
-                                        selected={sw.children || []}
-                                        onChange={(ids) => {
-                                            updateSoftware(sw.id, { ...sw, children: ids }).then(loadSoftwares);
-                                        }}
-                                        placeholder={t('softwares.none')}
-                                    />
+                                <td className="px-6 py-4 text-sm text-gray-600">{!isParentAService && parent ? parent.name : '-'}</td>
+                                <td className="px-6 py-4 text-sm">
+                                    {sw.children && sw.children.length > 0 ? (
+                                        <div>
+                                            <button
+                                                onClick={() => setExpandedChildren(prev => ({...prev, [sw.id]: !prev[sw.id]}))}
+                                                className="text-blue-600 hover:underline flex items-center"
+                                            >
+                                                {sw.children.length} {t('softwares.children')}
+                                            </button>
+                                            {expandedChildren[sw.id] && (
+                                                <ul className="mt-2 text-xs text-gray-500 list-disc list-inside bg-gray-50 p-2 rounded">
+                                                    {sw.children.map(childId => {
+                                                        const child = softwares.find(s => s.id === childId);
+                                                        return <li key={childId}>{child?.name || 'Unknown'}</li>;
+                                                    })}
+                                                </ul>
+                                            )}
+                                        </div>
+                                    ) : '-'}
                                 </td>
                                 <td className="px-6 py-4 text-gray-500 truncate max-w-xs">{sw.description}</td>
                                 <td className="px-6 py-4 flex space-x-3">
