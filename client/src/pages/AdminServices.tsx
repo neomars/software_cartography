@@ -1,94 +1,138 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { getServices, getSoftwares, deleteService, createService, updateService, Software, Service, uploadLogo } from '../api';
 import { Trash2, Edit, Plus, X } from 'lucide-react';
 import { useTranslation } from '../i18n';
+import { hexToHsl, hslToHex } from '../utils/colorUtils';
+import MultiSelect from '../components/MultiSelect';
 
-const AdminServices = () => {
+interface Option {
+    id: string;
+    name: string;
+    group?: string;
+}
+
+const AdminServices: React.FC = () => {
     const { t } = useTranslation();
     const [services, setServices] = useState<Service[]>([]);
-
-    const hexToHsl = (hex: string) => {
-        let r = parseInt(hex.slice(1, 3), 16) / 255;
-        let g = parseInt(hex.slice(3, 5), 16) / 255;
-        let b = parseInt(hex.slice(5, 7), 16) / 255;
-        let max = Math.max(r, g, b), min = Math.min(r, g, b);
-        let h = 0, s, l = (max + min) / 2;
-        if (max === min) h = s = 0;
-        else {
-            let d = max - min;
-            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-            switch (max) {
-                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-                case g: h = (b - r) / d + 2; break;
-                case b: h = (r - g) / d + 4; break;
-            }
-            h /= 6;
-        }
-        return [h * 360, s * 100, l * 100];
-    };
-
-    const hslToHex = (h: number, s: number, l: number) => {
-        l /= 100;
-        const a = s * Math.min(l, 1 - l) / 100;
-        const f = (n: number) => {
-            const k = (n + h / 30) % 12;
-            const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-            return Math.round(255 * color).toString(16).padStart(2, '0');
-        };
-        return `#${f(0)}${f(8)}${f(4)}`;
-    };
-
     const [softwares, setSoftwares] = useState<Software[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentService, setCurrentService] = useState<Partial<Service> | null>(null);
 
-    useEffect(() => { loadData(); }, []);
-    const loadData = async () => {
-        const [resServices, resSoftwares] = await Promise.all([getServices(), getSoftwares()]);
-        setServices(resServices.data); setSoftwares(resSoftwares.data);
+    const loadData = useCallback(async () => {
+        try {
+            const [resServices, resSoftwares] = await Promise.all([getServices(), getSoftwares()]);
+            setServices(resServices.data);
+            setSoftwares(resSoftwares.data);
+        } catch (error) {
+            console.error("Failed to load data", error);
+        }
+    }, []);
+
+    useEffect(() => { loadData(); }, [loadData]);
+
+    const handleDelete = async (id: string) => {
+        if (window.confirm(t('common.confirmDelete'))) {
+            await deleteService(id);
+            loadData();
+        }
     };
-    const handleDelete = async (id: string) => { if (window.confirm(t('common.confirmDelete'))) { await deleteService(id); loadData(); } };
-    const handleLogoUpload = async (id: string, e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files && e.target.files[0]) { await uploadLogo('service', id, e.target.files[0]); loadData(); } };
+
+    const handleLogoUpload = async (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            await uploadLogo('service', id, e.target.files[0]);
+            loadData();
+        }
+    };
+
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (currentService?.id) await updateService(currentService.id, currentService);
-        else await createService(currentService || {});
-        setIsModalOpen(false); setCurrentService(null); loadData();
+        if (!currentService) return;
+
+        const data = {
+            ...currentService,
+            children: currentService.children || [],
+            parent_ids: currentService.parent_ids || []
+        };
+
+        try {
+            if (currentService.id) {
+                await updateService(currentService.id, data);
+            } else {
+                await createService(data);
+            }
+            setIsModalOpen(false);
+            setCurrentService(null);
+            loadData();
+        } catch (error) {
+            console.error("Failed to save service", error);
+        }
     };
-    const toggleChild = (id: string) => {
-        const children = currentService?.children || [];
-        if (children.includes(id)) setCurrentService({ ...currentService, children: children.filter(c => c !== id) });
-        else setCurrentService({ ...currentService, children: [...children, id] });
-    };
+
+    const parentOptions = useMemo<Option[]>(() => [
+        ...services.filter(s => s.id !== currentService?.id).map(s => ({
+            id: s.id,
+            name: s.name,
+            group: t('nav.services')
+        }))
+    ], [services, currentService, t]);
+
+    const childOptions = useMemo<Option[]>(() => [
+        ...services.filter(s => s.id !== currentService?.id).map(s => ({
+            id: s.id,
+            name: s.name,
+            group: t('nav.services')
+        })),
+        ...softwares.map(sw => ({
+            id: sw.id,
+            name: sw.name,
+            group: t('nav.softwares')
+        }))
+    ], [services, softwares, currentService, t]);
 
     return (
         <div className="p-8">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">{t('services.title')}</h2>
-                <button onClick={() => { setCurrentService({ name: '', color: '#3b82f6', children: [] }); setIsModalOpen(true); }} className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                <button
+                    onClick={() => { setCurrentService({ name: '', color: '#3b82f6', children: [], parent_ids: [] }); setIsModalOpen(true); }}
+                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
                     <Plus className="mr-2 w-4 h-4" /> {t('services.create')}
                 </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {services.map(service => {
-                    const parent = services.find(s => s.id === service.parent_id);
+                    const pIds = service.parent_ids || (service.parent_id ? [service.parent_id] : []);
+                    const parentNames = pIds
+                        .map(pid => services.find(s => s.id === pid)?.name)
+                        .filter(Boolean)
+                        .join(', ');
+
                     return (
                     <div key={service.id} className="bg-white p-6 rounded-lg shadow-md border-t-4" style={{ borderTopColor: service.color }}>
                         <div className="flex justify-between items-start">
                             <div className="flex items-center">
                                 <div className="relative w-12 h-12 border rounded overflow-hidden mr-3">
-                                    {service.logo ? <img src={`http://localhost:5000${service.logo}`} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gray-100 flex items-center justify-center text-[10px]">{t('common.logo')}</div>}
+                                    {service.logo ? (
+                                        <img src={`http://localhost:5000${service.logo}`} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full bg-gray-100 flex items-center justify-center text-[10px]">{t('common.logo')}</div>
+                                    )}
                                     <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleLogoUpload(service.id, e)} />
                                 </div>
                                 <div>
                                     <h3 className="font-bold">{service.name}</h3>
                                     <p className="text-xs text-gray-500">{t('services.numComponents', { count: service.children.length })}</p>
-                                    {parent && <p className="text-xs text-blue-600 mt-1">Parent: {parent.name}</p>}
+                                    {parentNames && <p className="text-xs text-blue-600 mt-1">Parents: {parentNames}</p>}
                                 </div>
                             </div>
                             <div className="flex space-x-2">
-                                <button onClick={() => { setCurrentService(service); setIsModalOpen(true); }} className="text-blue-600"><Edit className="w-5 h-5" /></button>
-                                <button onClick={() => handleDelete(service.id)} className="text-red-600"><Trash2 className="w-5 h-5" /></button>
+                                <button onClick={() => { setCurrentService(service); setIsModalOpen(true); }} className="text-blue-600">
+                                    <Edit className="w-5 h-5" />
+                                </button>
+                                <button onClick={() => handleDelete(service.id)} className="text-red-600">
+                                    <Trash2 className="w-5 h-5" />
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -98,15 +142,29 @@ const AdminServices = () => {
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-lg w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold">{t('nav.services')}</h3><button onClick={() => setIsModalOpen(false)}><X className="w-6 h-6" /></button></div>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-bold">{t('nav.services')}</h3>
+                            <button onClick={() => setIsModalOpen(false)}><X className="w-6 h-6" /></button>
+                        </div>
                         <form onSubmit={handleSave} className="space-y-4">
-                            <div><label className="block text-sm font-medium">{t('common.name')}</label><input type="text" required className="mt-1 block w-full border rounded p-2" value={currentService?.name || ''} onChange={e => setCurrentService({...currentService, name: e.target.value})} /></div>
                             <div>
-                                <label className="block text-sm font-medium">{t('softwares.parent')}</label>
-                                <select className="mt-1 block w-full border rounded p-2" value={currentService?.parent_id || ''} onChange={e => setCurrentService({...currentService, parent_id: e.target.value || null})}>
-                                    <option value="">{t('softwares.none')}</option>
-                                    {services.filter(s => s.id !== currentService?.id).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                </select>
+                                <label className="block text-sm font-medium">{t('common.name')}</label>
+                                <input
+                                    type="text"
+                                    required
+                                    className="mt-1 block w-full border rounded p-2"
+                                    value={currentService?.name || ''}
+                                    onChange={e => setCurrentService(prev => ({ ...prev!, name: e.target.value }))}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">{t('softwares.parent')}</label>
+                                <MultiSelect
+                                    options={parentOptions}
+                                    selected={currentService?.parent_ids || (currentService?.parent_id ? [currentService.parent_id] : [])}
+                                    onChange={(ids) => setCurrentService(prev => ({ ...prev!, parent_ids: ids, parent_id: ids.length > 0 ? ids[0] : null }))}
+                                    placeholder={t('softwares.none')}
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium mb-2">{t('services.color')}</label>
@@ -121,7 +179,7 @@ const AdminServices = () => {
                                                 type="text"
                                                 className="w-full px-3 py-1 text-sm font-mono border rounded-lg uppercase"
                                                 value={currentService?.color || '#3b82f6'}
-                                                onChange={e => setCurrentService({...currentService, color: e.target.value})}
+                                                onChange={e => setCurrentService(prev => ({ ...prev!, color: e.target.value }))}
                                             />
                                         </div>
                                     </div>
@@ -139,7 +197,7 @@ const AdminServices = () => {
                                                 value={hexToHsl(currentService?.color || '#3b82f6')[0]}
                                                 onChange={e => {
                                                     const [_, s, l] = hexToHsl(currentService?.color || '#3b82f6');
-                                                    setCurrentService({...currentService, color: hslToHex(parseInt(e.target.value), s, l)});
+                                                    setCurrentService(prev => ({ ...prev!, color: hslToHex(parseInt(e.target.value), s, l) }));
                                                 }}
                                             />
                                         </div>
@@ -155,7 +213,7 @@ const AdminServices = () => {
                                                 value={hexToHsl(currentService?.color || '#3b82f6')[1]}
                                                 onChange={e => {
                                                     const [h, _, l] = hexToHsl(currentService?.color || '#3b82f6');
-                                                    setCurrentService({...currentService, color: hslToHex(h, parseInt(e.target.value), l)});
+                                                    setCurrentService(prev => ({ ...prev!, color: hslToHex(h, parseInt(e.target.value), l) }));
                                                 }}
                                             />
                                         </div>
@@ -171,7 +229,7 @@ const AdminServices = () => {
                                                 value={hexToHsl(currentService?.color || '#3b82f6')[2]}
                                                 onChange={e => {
                                                     const [h, s, _] = hexToHsl(currentService?.color || '#3b82f6');
-                                                    setCurrentService({...currentService, color: hslToHex(h, s, parseInt(e.target.value))});
+                                                    setCurrentService(prev => ({ ...prev!, color: hslToHex(h, s, parseInt(e.target.value)) }));
                                                 }}
                                             />
                                         </div>
@@ -180,23 +238,14 @@ const AdminServices = () => {
                             </div>
                             <div>
                                 <label className="block text-sm font-medium mb-2">{t('services.components')}</label>
-                                <div className="border rounded p-4 h-64 overflow-y-auto bg-gray-50">
-                                    {softwares.map(sw => (
-                                        <label key={sw.id} className="flex items-center space-x-2 cursor-pointer p-1 hover:bg-white">
-                                            <input type="checkbox" checked={currentService?.children?.includes(sw.id) || false} onChange={() => toggleChild(sw.id)} />
-                                            <span className="text-sm">{sw.name}</span>
-                                        </label>
-                                    ))}
-                                    <div className="mt-4 border-t pt-2" />
-                                    {services.filter(s => s.id !== currentService?.id).map(s => (
-                                        <label key={s.id} className="flex items-center space-x-2 cursor-pointer p-1 hover:bg-white">
-                                            <input type="checkbox" checked={currentService?.children?.includes(s.id) || false} onChange={() => toggleChild(s.id)} />
-                                            <span className="text-sm font-semibold text-blue-700">{s.name}</span>
-                                        </label>
-                                    ))}
-                                </div>
+                                <MultiSelect
+                                    options={childOptions}
+                                    selected={currentService?.children || []}
+                                    onChange={(ids) => setCurrentService(prev => ({ ...prev!, children: ids }))}
+                                    placeholder={t('softwares.none')}
+                                />
                             </div>
-                            <div className="flex justify-end">
+                            <div className="flex justify-end pt-4">
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="mr-4 px-4 py-2 border rounded">{t('common.cancel')}</button>
                                 <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">{t('common.save')}</button>
                             </div>

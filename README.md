@@ -1,4 +1,4 @@
-# Logiciel de Visualisation 3D (Viz3D) / 3D Visualization Software
+# Cartographie Logicielle 2D & 3D / 2D & 3D cartography software
 
 [Français](#français) | [English](#english)
 
@@ -44,6 +44,7 @@ Accédez à l'onglet "Logiciels" pour :
 - **Ajouter/Modifier** : Définir le nom, la description, l'accès (booléen) et le service parent.
 - **Importer CSV** : Importer des données à partir d'un fichier CSV.
   - Colonnes requises : `Logiciels`, `Accès`, `Description`.
+  - Colonne optionnelle : `Service` (Nom du service parent).
   - Le champ `Accès` accepte : `true`, `false`, `oui`, `non`, `1`, `0`.
   - L'importation effectue une déduplication basée sur le nom du logiciel.
 - **Logo** : Cliquez sur la zone de logo pour télécharger une image pour chaque logiciel.
@@ -100,6 +101,7 @@ Go to the "Softwares" tab to:
 - **Add/Edit**: Define name, description, access (boolean), parent service, and child softwares.
 - **Import CSV**: Import data from a CSV file.
   - Required columns: `Logiciels`, `Accès`, `Description`.
+  - Optional column: `Service` (Name of the parent service).
   - The `Accès` field accepts: `true`, `false`, `oui`, `non`, `1`, `0`.
   - Import performs deduplication based on software name.
 - **Logo**: Click on the logo area to upload an image for each software.

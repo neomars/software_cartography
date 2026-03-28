@@ -41,7 +41,10 @@ function readDB() {
 
 function writeDB(data) {
     console.log(`[DB] Writing to ${DATA_FILE}`);
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+    // Using stringify with null, 2 for readability.
+    // No special handling needed for unicode as JSON.stringify handles it,
+    // but we can ensure it's written as UTF-8.
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
 }
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
@@ -53,24 +56,35 @@ app.get('/api/softwares', (req, res) => {
 
 app.post('/api/softwares', (req, res) => {
     const db = readDB();
-    const newSoftware = { id: uuidv4(), children: [], parent_id: null, ...req.body };
+    const newSoftware = { id: uuidv4(), children: [], parent_id: null, parent_ids: [], ...req.body };
+
+    // Support both single parent_id and multiple parent_ids
+    const allParentIds = new Set(newSoftware.parent_ids || []);
+    if (newSoftware.parent_id) allParentIds.add(newSoftware.parent_id);
+    newSoftware.parent_ids = Array.from(allParentIds);
+    newSoftware.parent_id = newSoftware.parent_ids[0] || null;
+
     db.softwares.push(newSoftware);
 
-    if (newSoftware.parent_id) {
-        const parentService = db.services.find(s => s.id === newSoftware.parent_id);
+    newSoftware.parent_ids.forEach(pId => {
+        const parentService = db.services.find(s => s.id === pId);
         if (parentService && !parentService.children.includes(newSoftware.id)) {
             parentService.children.push(newSoftware.id);
         }
-        const parentSw = db.softwares.find(s => s.id === newSoftware.parent_id);
+        const parentSw = db.softwares.find(s => s.id === pId);
         if (parentSw && !parentSw.children.includes(newSoftware.id)) {
             parentSw.children.push(newSoftware.id);
         }
-    }
+    });
 
     if (newSoftware.children) {
         newSoftware.children.forEach(childId => {
             const childSw = db.softwares.find(s => s.id === childId);
-            if (childSw) childSw.parent_id = newSoftware.id;
+            if (childSw) {
+                if (!childSw.parent_ids) childSw.parent_ids = [];
+                if (!childSw.parent_ids.includes(newSoftware.id)) childSw.parent_ids.push(newSoftware.id);
+                childSw.parent_id = childSw.parent_ids[0] || null;
+            }
         });
     }
 
@@ -84,45 +98,62 @@ app.put('/api/softwares/:id', (req, res) => {
     const index = db.softwares.findIndex(s => s.id === req.params.id);
     if (index !== -1) {
         const oldSoftware = db.softwares[index];
-        const newSoftware = { ...oldSoftware, children: oldSoftware.children || [], ...req.body };
+        const newSoftware = {
+            ...oldSoftware,
+            children: oldSoftware.children || [],
+            parent_ids: oldSoftware.parent_ids || [],
+            ...req.body
+        };
 
-        if (oldSoftware.parent_id !== newSoftware.parent_id) {
-            // Remove from all potential parents (cleanup)
-            db.services.forEach(s => {
-                s.children = (s.children || []).filter(id => id !== req.params.id);
-            });
-            db.softwares.forEach(s => {
-                s.children = (s.children || []).filter(id => id !== req.params.id);
-            });
+        const oldParents = new Set(oldSoftware.parent_ids || []);
+        if (oldSoftware.parent_id) oldParents.add(oldSoftware.parent_id);
 
-            if (newSoftware.parent_id) {
-                const newService = db.services.find(s => s.id === newSoftware.parent_id);
-                if (newService) {
-                    if (!newService.children) newService.children = [];
-                    if (!newService.children.includes(req.params.id)) {
-                        newService.children.push(req.params.id);
-                    }
-                }
-                const newParentSw = db.softwares.find(s => s.id === newSoftware.parent_id);
-                if (newParentSw) {
-                    if (!newParentSw.children) newParentSw.children = [];
-                    if (!newParentSw.children.includes(req.params.id)) {
-                        newParentSw.children.push(req.params.id);
-                    }
-                }
+        const newParents = new Set(newSoftware.parent_ids || []);
+        if (newSoftware.parent_id) newParents.add(newSoftware.parent_id);
+        newSoftware.parent_ids = Array.from(newParents);
+        newSoftware.parent_id = newSoftware.parent_ids[0] || null;
+
+        // Remove from old parents that are not in new parents
+        oldParents.forEach(pId => {
+            if (!newParents.has(pId)) {
+                const srv = db.services.find(s => s.id === pId);
+                if (srv) srv.children = (srv.children || []).filter(id => id !== req.params.id);
+                const sw = db.softwares.find(s => s.id === pId);
+                if (sw) sw.children = (sw.children || []).filter(id => id !== req.params.id);
             }
-        }
+        });
+
+        // Add to new parents
+        newParents.forEach(pId => {
+            const srv = db.services.find(s => s.id === pId);
+            if (srv && !(srv.children || []).includes(req.params.id)) {
+                if (!srv.children) srv.children = [];
+                srv.children.push(req.params.id);
+            }
+            const sw = db.softwares.find(s => s.id === pId);
+            if (sw && !(sw.children || []).includes(req.params.id)) {
+                if (!sw.children) sw.children = [];
+                sw.children.push(req.params.id);
+            }
+        });
 
         if (newSoftware.children) {
             oldSoftware.children?.forEach(childId => {
                 if (!newSoftware.children.includes(childId)) {
                     const childSw = db.softwares.find(s => s.id === childId);
-                    if (childSw) childSw.parent_id = null;
+                    if (childSw) {
+                        childSw.parent_ids = (childSw.parent_ids || []).filter(id => id !== req.params.id);
+                        childSw.parent_id = childSw.parent_ids[0] || null;
+                    }
                 }
             });
             newSoftware.children.forEach(childId => {
                 const childSw = db.softwares.find(s => s.id === childId);
-                if (childSw) childSw.parent_id = newSoftware.id;
+                if (childSw) {
+                    if (!childSw.parent_ids) childSw.parent_ids = [];
+                    if (!childSw.parent_ids.includes(newSoftware.id)) childSw.parent_ids.push(newSoftware.id);
+                    childSw.parent_id = childSw.parent_ids[0] || null;
+                }
             });
         }
 
@@ -138,12 +169,22 @@ app.delete('/api/softwares/:id', (req, res) => {
     const db = readDB();
     const softwareToDelete = db.softwares.find(s => s.id === req.params.id);
     if (softwareToDelete) {
-        if (softwareToDelete.parent_id) {
-            const parentService = db.services.find(s => s.id === softwareToDelete.parent_id);
-            if (parentService) {
-                parentService.children = parentService.children.filter(id => id !== req.params.id);
-            }
+        // Handle children
+        if (softwareToDelete.children) {
+            softwareToDelete.children.forEach(childId => {
+                const childSw = db.softwares.find(s => s.id === childId);
+                if (childSw) {
+                    childSw.parent_ids = (childSw.parent_ids || []).filter(id => id !== req.params.id);
+                    childSw.parent_id = childSw.parent_ids[0] || null;
+                }
+                const childSrv = db.services.find(s => s.id === childId);
+                if (childSrv) {
+                    childSrv.parent_ids = (childSrv.parent_ids || []).filter(id => id !== req.params.id);
+                    childSrv.parent_id = childSrv.parent_ids[0] || null;
+                }
+            });
         }
+
         db.softwares = db.softwares.filter(s => s.id !== req.params.id);
         db.softwares.forEach(sw => {
             if (sw.children) sw.children = sw.children.filter(childId => childId !== req.params.id);
@@ -163,41 +204,43 @@ app.get('/api/services', (req, res) => {
 
 app.post('/api/services', (req, res) => {
     const db = readDB();
-    const newService = { id: uuidv4(), name: '', color: '#3b82f6', children: [], parent_id: null, ...req.body };
+    const newService = { id: uuidv4(), name: '', color: '#3b82f6', children: [], parent_id: null, parent_ids: [], ...req.body };
+
+    // Support both single parent_id and multiple parent_ids
+    const allParentIds = new Set(newService.parent_ids || []);
+    if (newService.parent_id) allParentIds.add(newService.parent_id);
+    newService.parent_ids = Array.from(allParentIds);
+    newService.parent_id = newService.parent_ids[0] || null;
+
     db.services.push(newService);
 
-    if (newService.parent_id) {
-        const parentSrv = db.services.find(s => s.id === newService.parent_id);
+    newService.parent_ids.forEach(pId => {
+        const parentSrv = db.services.find(s => s.id === pId);
         if (parentSrv && !parentSrv.children.includes(newService.id)) {
             parentSrv.children.push(newService.id);
         }
-    }
-
-    newService.children.forEach(childId => {
-        db.services.forEach(s => {
-            if (s.id !== newService.id) {
-                s.children = s.children.filter(id => id !== childId);
-            }
-        });
-        const software = db.softwares.find(s => s.id === childId);
-        if (software) {
-            if (software.parent_id && software.parent_id !== newService.id) {
-                const oldParentSrv = db.services.find(s => s.id === software.parent_id);
-                if (oldParentSrv) oldParentSrv.children = oldParentSrv.children.filter(id => id !== childId);
-                const oldParentSw = db.softwares.find(s => s.id === software.parent_id);
-                if (oldParentSw) oldParentSw.children = oldParentSw.children.filter(id => id !== childId);
-            }
-            software.parent_id = newService.id;
-        }
-        const service = db.services.find(s => s.id === childId);
-        if (service) {
-            if (service.parent_id && service.parent_id !== newService.id) {
-                const oldParentSrv = db.services.find(s => s.id === service.parent_id);
-                if (oldParentSrv) oldParentSrv.children = oldParentSrv.children.filter(id => id !== childId);
-            }
-            service.parent_id = newService.id;
+        const parentSw = db.softwares.find(s => s.id === pId);
+        if (parentSw && !parentSw.children.includes(newService.id)) {
+            parentSw.children.push(newService.id);
         }
     });
+
+    if (newService.children) {
+        newService.children.forEach(childId => {
+            const childSw = db.softwares.find(s => s.id === childId);
+            if (childSw) {
+                childSw.parent_id = newService.id;
+                if (!childSw.parent_ids) childSw.parent_ids = [];
+                if (!childSw.parent_ids.includes(newService.id)) childSw.parent_ids.push(newService.id);
+            }
+            const childSrv = db.services.find(s => s.id === childId);
+            if (childSrv) {
+                childSrv.parent_id = newService.id;
+                if (!childSrv.parent_ids) childSrv.parent_ids = [];
+                if (!childSrv.parent_ids.includes(newService.id)) childSrv.parent_ids.push(newService.id);
+            }
+        });
+    }
 
     writeDB(db);
     res.status(201).json(newService);
@@ -209,60 +252,75 @@ app.put('/api/services/:id', (req, res) => {
     const index = db.services.findIndex(s => s.id === req.params.id);
     if (index !== -1) {
         const oldService = db.services[index];
-        const newService = { ...oldService, children: oldService.children || [], ...req.body };
+        const newService = {
+            ...oldService,
+            children: oldService.children || [],
+            parent_ids: oldService.parent_ids || [],
+            ...req.body
+        };
 
-        if (oldService.parent_id !== newService.parent_id) {
-            // Remove from all potential parents (cleanup)
-            db.services.forEach(s => {
-                s.children = (s.children || []).filter(id => id !== req.params.id);
-            });
+        const oldParents = new Set(oldService.parent_ids || []);
+        if (oldService.parent_id) oldParents.add(oldService.parent_id);
 
-            if (newService.parent_id) {
-                const newParentService = db.services.find(s => s.id === newService.parent_id);
-                if (newParentService) {
-                    if (!newParentService.children) newParentService.children = [];
-                    if (!newParentService.children.includes(req.params.id)) {
-                        newParentService.children.push(req.params.id);
+        const newParents = new Set(newService.parent_ids || []);
+        if (newService.parent_id) newParents.add(newService.parent_id);
+        newService.parent_ids = Array.from(newParents);
+        newService.parent_id = newService.parent_ids[0] || null;
+
+        // Remove from old parents that are not in new parents
+        oldParents.forEach(pId => {
+            if (!newParents.has(pId)) {
+                const srv = db.services.find(s => s.id === pId);
+                if (srv) srv.children = (srv.children || []).filter(id => id !== req.params.id);
+                const sw = db.softwares.find(s => s.id === pId);
+                if (sw) sw.children = (sw.children || []).filter(id => id !== req.params.id);
+            }
+        });
+
+        // Add to new parents
+        newParents.forEach(pId => {
+            const srv = db.services.find(s => s.id === pId);
+            if (srv && !(srv.children || []).includes(req.params.id)) {
+                if (!srv.children) srv.children = [];
+                srv.children.push(req.params.id);
+            }
+            const sw = db.softwares.find(s => s.id === pId);
+            if (sw && !(sw.children || []).includes(req.params.id)) {
+                if (!sw.children) sw.children = [];
+                sw.children.push(req.params.id);
+            }
+        });
+
+        if (newService.children) {
+            oldService.children?.forEach(childId => {
+                if (!newService.children.includes(childId)) {
+                    const childSw = db.softwares.find(s => s.id === childId);
+                    if (childSw) {
+                        childSw.parent_ids = (childSw.parent_ids || []).filter(id => id !== req.params.id);
+                        childSw.parent_id = childSw.parent_ids[0] || null;
+                    }
+                    const childSrv = db.services.find(s => s.id === childId);
+                    if (childSrv) {
+                        childSrv.parent_ids = (childSrv.parent_ids || []).filter(id => id !== req.params.id);
+                        childSrv.parent_id = childSrv.parent_ids[0] || null;
                     }
                 }
-            }
-        }
-
-        (oldService.children || []).forEach(childId => {
-            if (!newService.children.includes(childId)) {
-                const software = db.softwares.find(s => s.id === childId);
-                if (software) software.parent_id = null;
-                const service = db.services.find(s => s.id === childId);
-                if (service) service.parent_id = null;
-            }
-        });
-
-        (newService.children || []).forEach(childId => {
-            db.services.forEach((s, idx) => {
-                if (s.id !== newService.id) {
-                    db.services[idx].children = (s.children || []).filter(id => id !== childId);
+            });
+            newService.children.forEach(childId => {
+                const childSw = db.softwares.find(s => s.id === childId);
+                if (childSw) {
+                    if (!childSw.parent_ids) childSw.parent_ids = [];
+                    if (!childSw.parent_ids.includes(newService.id)) childSw.parent_ids.push(newService.id);
+                    childSw.parent_id = childSw.parent_ids[0] || null;
+                }
+                const childSrv = db.services.find(s => s.id === childId);
+                if (childSrv) {
+                    if (!childSrv.parent_ids) childSrv.parent_ids = [];
+                    if (!childSrv.parent_ids.includes(newService.id)) childSrv.parent_ids.push(newService.id);
+                    childSrv.parent_id = childSrv.parent_ids[0] || null;
                 }
             });
-
-            const software = db.softwares.find(s => s.id === childId);
-            if (software) {
-                if (software.parent_id && software.parent_id !== newService.id) {
-                    const oldParentSrv = db.services.find(s => s.id === software.parent_id);
-                    if (oldParentSrv) oldParentSrv.children = (oldParentSrv.children || []).filter(id => id !== childId);
-                    const oldParentSw = db.softwares.find(s => s.id === software.parent_id);
-                    if (oldParentSw) oldParentSw.children = (oldParentSw.children || []).filter(id => id !== childId);
-                }
-                software.parent_id = newService.id;
-            }
-            const service = db.services.find(s => s.id === childId);
-            if (service) {
-                if (service.parent_id && service.parent_id !== newService.id) {
-                    const oldParentSrv = db.services.find(s => s.id === service.parent_id);
-                    if (oldParentSrv) oldParentSrv.children = (oldParentSrv.children || []).filter(id => id !== childId);
-                }
-                service.parent_id = newService.id;
-            }
-        });
+        }
 
         db.services[index] = newService;
         writeDB(db);
@@ -276,15 +334,28 @@ app.delete('/api/services/:id', (req, res) => {
     const db = readDB();
     const serviceToDelete = db.services.find(s => s.id === req.params.id);
     if (serviceToDelete) {
-        serviceToDelete.children.forEach(childId => {
-            const software = db.softwares.find(s => s.id === childId);
-            if (software) software.parent_id = null;
-            const service = db.services.find(s => s.id === childId);
-            if (service) service.parent_id = null;
-        });
+        // Handle children
+        if (serviceToDelete.children) {
+            serviceToDelete.children.forEach(childId => {
+                const childSw = db.softwares.find(s => s.id === childId);
+                if (childSw) {
+                    childSw.parent_ids = (childSw.parent_ids || []).filter(id => id !== req.params.id);
+                    childSw.parent_id = childSw.parent_ids[0] || null;
+                }
+                const childSrv = db.services.find(s => s.id === childId);
+                if (childSrv) {
+                    childSrv.parent_ids = (childSrv.parent_ids || []).filter(id => id !== req.params.id);
+                    childSrv.parent_id = childSrv.parent_ids[0] || null;
+                }
+            });
+        }
+
         db.services = db.services.filter(s => s.id !== req.params.id);
         db.services.forEach(service => {
-            service.children = service.children.filter(childId => childId !== req.params.id);
+            service.children = (service.children || []).filter(childId => childId !== req.params.id);
+        });
+        db.softwares.forEach(sw => {
+            if (sw.children) sw.children = sw.children.filter(childId => childId !== req.params.id);
         });
         writeDB(db);
     }
@@ -295,24 +366,51 @@ app.post('/api/import-csv', upload.single('file'), (req, res) => {
     if (!req.file) return res.status(400).send('No file uploaded');
     const results = [];
     fs.createReadStream(req.file.path)
-        .pipe(csv({ separator: ',' }))
+        .pipe(csv({
+            separator: ',',
+            mapHeaders: ({ header }) => header.trim(),
+            mapValues: ({ value }) => value.trim()
+        }))
         .on('data', (data) => results.push(data))
         .on('end', () => {
             const db = readDB();
             results.forEach(row => {
-                const name = row.Logiciels || 'Sans nom';
+                console.log('[Import] Processing row:', row);
+                const name = row.Logiciels || row.software || row.Logiciel || 'Sans nom';
                 const existingIndex = db.softwares.findIndex(s => s.name === name);
 
                 const isTrue = (val) => {
-                    if (typeof val !== 'string') return false;
-                    const v = val.toLowerCase().trim();
+                    if (!val) return false;
+                    const v = String(val).toLowerCase().trim();
                     return v === 'true' || v === 'oui' || v === '1' || v === 'vrai';
                 };
+
+                // Try to find parent service if specified
+                let parentId = existingIndex !== -1 ? db.softwares[existingIndex].parent_id : null;
+                const serviceName = row.Service || row.service;
+                if (serviceName) {
+                    const parentService = db.services.find(s => s.name.toLowerCase().trim() === serviceName.toLowerCase().trim());
+                    if (parentService) {
+                        const newParentId = parentService.id;
+                        // Cleanup: if the parent changed, remove from old parent
+                        if (parentId && parentId !== newParentId) {
+                            const oldParent = db.services.find(s => s.id === parentId);
+                            if (oldParent) {
+                                oldParent.children = (oldParent.children || []).filter(id => id !== (existingIndex !== -1 ? db.softwares[existingIndex].id : ''));
+                            }
+                        }
+                        parentId = newParentId;
+                        console.log(`[Import] Found parent service: ${parentService.name} (${parentId})`);
+                    } else {
+                        console.log(`[Import] Parent service not found: ${serviceName}`);
+                    }
+                }
 
                 const software = {
                     id: existingIndex !== -1 ? db.softwares[existingIndex].id : uuidv4(),
                     name: name,
-                    parent_id: existingIndex !== -1 ? db.softwares[existingIndex].parent_id : null,
+                    parent_id: parentId,
+                    parent_ids: parentId ? [parentId] : (existingIndex !== -1 ? (db.softwares[existingIndex].parent_ids || []) : []),
                     children: existingIndex !== -1 ? (db.softwares[existingIndex].children || []) : [],
                     acces: isTrue(row['Accès']),
                     description: row.Description || (existingIndex !== -1 ? db.softwares[existingIndex].description : ''),
@@ -326,6 +424,14 @@ app.post('/api/import-csv', upload.single('file'), (req, res) => {
                     db.softwares[existingIndex] = software;
                 } else {
                     db.softwares.push(software);
+                }
+
+                // Update parent service children list
+                if (parentId) {
+                    const parentService = db.services.find(s => s.id === parentId);
+                    if (parentService && !parentService.children.includes(software.id)) {
+                        parentService.children.push(software.id);
+                    }
                 }
             });
             writeDB(db);
