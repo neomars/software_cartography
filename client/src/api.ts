@@ -22,6 +22,7 @@ export interface Service {
     color: string;
     children: string[];
     parent_id: string | null;
+    parent_ids: string[];
     logo: string | null;
 }
 
