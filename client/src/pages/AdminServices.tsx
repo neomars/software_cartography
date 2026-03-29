@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { getServices, getSoftwares, deleteService, createService, updateService, Software, Service, uploadLogo } from '../api';
-import { Trash2, Edit, Plus, X } from 'lucide-react';
+import { Trash2, Edit, Plus, X, LayoutGrid, Network } from 'lucide-react';
+import ForceGraph2D from 'react-force-graph-2d';
 import { useTranslation } from '../i18n';
 import { hexToHsl, hslToHex } from '../utils/colorUtils';
 import MultiSelect from '../components/MultiSelect';
@@ -17,6 +18,8 @@ const AdminServices: React.FC = () => {
     const [softwares, setSoftwares] = useState<Software[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentService, setCurrentService] = useState<Partial<Service> | null>(null);
+    const [viewMode, setViewMode] = useState<'grid' | 'graph'>('grid');
+    const fgRef = useRef<any>(null);
 
     const loadData = useCallback(async () => {
         try {
@@ -89,10 +92,47 @@ const AdminServices: React.FC = () => {
         }))
     ], [services, softwares, currentService, t]);
 
+    const graphData = useMemo(() => {
+        const nodes = services.map(s => ({
+            id: s.id,
+            name: s.name,
+            color: s.color,
+            val: 10 + (s.children?.length || 0)
+        }));
+        const links: any[] = [];
+        services.forEach(s => {
+            const pIds = s.parent_ids || (s.parent_id ? [s.parent_id] : []);
+            pIds.forEach(pid => {
+                if (services.some(srv => srv.id === pid)) {
+                    links.push({ source: pid, target: s.id });
+                }
+            });
+        });
+        return { nodes, links };
+    }, [services]);
+
     return (
-        <div className="p-8">
+        <div className="p-8 h-full flex flex-col">
             <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">{t('services.title')}</h2>
+                <div className="flex items-center space-x-6">
+                    <h2 className="text-2xl font-bold">{t('services.title')}</h2>
+                    <div className="flex bg-gray-100 p-1 rounded-lg">
+                        <button
+                            onClick={() => setViewMode('grid')}
+                            className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            <LayoutGrid className="w-4 h-4 mr-2" />
+                            {t('services.viewGrid')}
+                        </button>
+                        <button
+                            onClick={() => setViewMode('graph')}
+                            className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'graph' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            <Network className="w-4 h-4 mr-2" />
+                            {t('services.viewGraph')}
+                        </button>
+                    </div>
+                </div>
                 <button
                     onClick={() => { setCurrentService({ name: '', color: '#3b82f6', children: [], parent_ids: [] }); setIsModalOpen(true); }}
                     className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
@@ -100,6 +140,46 @@ const AdminServices: React.FC = () => {
                     <Plus className="mr-2 w-4 h-4" /> {t('services.create')}
                 </button>
             </div>
+
+            {viewMode === 'graph' ? (
+                <div className="flex-1 bg-white rounded-xl shadow-inner border border-gray-200 overflow-hidden relative min-h-[600px]">
+                    <ForceGraph2D
+                        ref={fgRef}
+                        graphData={graphData}
+                        nodeLabel="name"
+                        nodeColor={(n: any) => n.color}
+                        nodeCanvasObject={(node: any, ctx, globalScale) => {
+                            const label = node.name;
+                            const fontSize = 12/globalScale;
+                            ctx.font = `${fontSize}px Sans-Serif`;
+                            const textWidth = ctx.measureText(label).width;
+                            const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2);
+
+                            ctx.fillStyle = node.color;
+                            ctx.beginPath();
+                            ctx.arc(node.x, node.y, 5, 0, 2 * Math.PI, false);
+                            ctx.fill();
+
+                            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                            ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y + 7 - bckgDimensions[1] / 2, bckgDimensions[0], bckgDimensions[1]);
+
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillStyle = '#333';
+                            ctx.fillText(label, node.x, node.y + 7);
+                        }}
+                        linkDirectionalParticles={2}
+                        linkDirectionalParticleSpeed={0.005}
+                        onNodeClick={(node: any) => {
+                            const service = services.find(s => s.id === node.id);
+                            if (service) {
+                                setCurrentService(service);
+                                setIsModalOpen(true);
+                            }
+                        }}
+                    />
+                </div>
+            ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {services.map(service => {
                     const pIds = service.parent_ids || (service.parent_id ? [service.parent_id] : []);
@@ -139,6 +219,7 @@ const AdminServices: React.FC = () => {
                     );
                 })}
             </div>
+            )}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-lg w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">

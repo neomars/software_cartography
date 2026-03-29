@@ -38,7 +38,9 @@ const translations = {
             create: "Créer",
             color: "Couleur",
             components: "Composants",
-            numComponents: "{count} composants"
+            numComponents: "{count} composants",
+            viewGrid: "Grille",
+            viewGraph: "Graphe"
         },
         viz: {
             refresh: "Rafraîchir",
@@ -89,7 +91,9 @@ const translations = {
             create: "Create",
             color: "Color",
             components: "Components",
-            numComponents: "{count} components"
+            numComponents: "{count} components",
+            viewGrid: "Grid",
+            viewGraph: "Graph"
         },
         viz: {
             refresh: "Refresh",
