@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 const translations = {
     fr: {
         nav: {
-            viz: "Visualisation",
+            viz: "Visualisation 3D",
+            viz2d: "Visualisation 2D",
             softwares: "Logiciels",
             services: "Services",
             settings: "Paramètres",
@@ -37,7 +38,9 @@ const translations = {
             create: "Créer",
             color: "Couleur",
             components: "Composants",
-            numComponents: "{count} composants"
+            numComponents: "{count} composants",
+            viewGrid: "Grille",
+            viewGraph: "Graphe"
         },
         viz: {
             refresh: "Rafraîchir",
@@ -47,12 +50,14 @@ const translations = {
         },
         settings: {
             title: "Paramètres de l'application",
-            appName: "Nom de l'application"
+            appName: "Nom de l'application",
+            linkOpacity: "Opacité des liens (%)"
         }
     },
     en: {
         nav: {
-            viz: "Visualization",
+            viz: "3D Visualization",
+            viz2d: "2D Visualization",
             softwares: "Softwares",
             services: "Services",
             settings: "Settings",
@@ -86,7 +91,9 @@ const translations = {
             create: "Create",
             color: "Color",
             components: "Components",
-            numComponents: "{count} components"
+            numComponents: "{count} components",
+            viewGrid: "Grid",
+            viewGraph: "Graph"
         },
         viz: {
             refresh: "Refresh",
@@ -96,7 +103,8 @@ const translations = {
         },
         settings: {
             title: "Application Settings",
-            appName: "Application Name"
+            appName: "Application Name",
+            linkOpacity: "Link Opacity (%)"
         }
     }
 };

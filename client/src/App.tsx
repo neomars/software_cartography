@@ -6,6 +6,7 @@ import AdminServices from './pages/AdminServices';
 import Settings from './pages/Settings';
 import Structure from './pages/Structure';
 import Visualization from './pages/Visualization';
+import Visualization2D from './pages/Visualization2D';
 import { useTranslation } from './i18n';
 import { getSettings } from './api';
 
@@ -30,6 +31,7 @@ function App() {
           </div>
           <ul className="mt-6 flex-1">
             <li className="px-6 py-3 hover:bg-gray-50"><Link to="/" className="flex items-center text-gray-700"><Play className="mr-3 w-5 h-5" />{t('nav.viz')}</Link></li>
+            <li className="px-6 py-3 hover:bg-gray-50"><Link to="/2d" className="flex items-center text-gray-700"><LayoutGrid className="mr-3 w-5 h-5" />{t('nav.viz2d')}</Link></li>
             <li className="px-6 py-3 hover:bg-gray-50"><Link to="/admin/softwares" className="flex items-center text-gray-700"><Database className="mr-3 w-5 h-5" />{t('nav.softwares')}</Link></li>
             <li className="px-6 py-3 hover:bg-gray-50"><Link to="/admin/services" className="flex items-center text-gray-700"><LayoutGrid className="mr-3 w-5 h-5" />{t('nav.services')}</Link></li>
             <li className="px-6 py-3 hover:bg-gray-50"><Link to="/admin/structure" className="flex items-center text-gray-700"><Network className="mr-3 w-5 h-5" />{t('nav.structure')}</Link></li>
@@ -39,6 +41,7 @@ function App() {
         <main className="flex-1 overflow-auto">
           <Routes>
             <Route path="/" element={<Visualization />} />
+            <Route path="/2d" element={<Visualization2D />} />
             <Route path="/admin/softwares" element={<AdminSoftwares />} />
             <Route path="/admin/services" element={<AdminServices />} />
             <Route path="/admin/structure" element={<Structure />} />
