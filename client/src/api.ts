@@ -6,6 +6,7 @@ export interface Software {
     id: string;
     name: string;
     parent_id: string | null;
+    parent_ids: string[];
     children: string[];
     acces: boolean;
     description: string;
@@ -13,6 +14,7 @@ export interface Software {
     sdan: string;
     ministere: string;
     logo: string | null;
+    criticality?: number;
 }
 
 export interface Service {
@@ -21,11 +23,14 @@ export interface Service {
     color: string;
     children: string[];
     parent_id: string | null;
+    parent_ids: string[];
     logo: string | null;
+    criticality?: number;
 }
 
 export interface Settings {
     appName: string;
+    linkOpacity: number;
 }
 
 export const getSoftwares = () => axios.get<Software[]>(`${API_BASE_URL}/softwares`);
