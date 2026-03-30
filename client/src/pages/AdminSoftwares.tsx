@@ -192,7 +192,17 @@ const AdminSoftwares: React.FC = () => {
                                             />
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 font-medium">{sw.name}</td>
+                                    <td className="px-6 py-4 font-medium">
+                                        <div className="flex items-center">
+                                            {sw.name}
+                                            {sw.criticality && (
+                                                <span className={`ml-2 w-3 h-3 rounded-full ${
+                                                    sw.criticality === 1 ? 'bg-red-500' :
+                                                    sw.criticality === 2 ? 'bg-orange-500' : 'bg-green-500'
+                                                }`} title={t(`common.tier${sw.criticality}`)} />
+                                            )}
+                                        </div>
+                                    </td>
                                     <td className="px-6 py-4 min-w-[200px]">
                                         <MultiSelect
                                             options={parentOptions.filter((o: SelectOption) => o.id !== sw.id)}
@@ -255,6 +265,38 @@ const AdminSoftwares: React.FC = () => {
                                     value={currentSoftware?.name || ''}
                                     onChange={e => setCurrentSoftware(prev => ({ ...prev!, name: e.target.value }))}
                                 />
+                            </div>
+
+                            <div className="col-span-2">
+                                <label className="block text-sm font-medium mb-1">{t('common.criticality')}</label>
+                                <div className="flex space-x-4 mt-1">
+                                    {[1, 2, 3].map((tier) => (
+                                        <button
+                                            key={tier}
+                                            type="button"
+                                            onClick={() => setCurrentSoftware(prev => ({ ...prev!, criticality: tier }))}
+                                            className={`flex-1 py-2 px-3 rounded-lg border-2 flex items-center justify-center transition-all ${
+                                                currentSoftware?.criticality === tier
+                                                    ? tier === 1 ? 'border-red-500 bg-red-50 text-red-700' :
+                                                      tier === 2 ? 'border-orange-500 bg-orange-50 text-orange-700' :
+                                                      'border-green-500 bg-green-50 text-green-700'
+                                                    : 'border-gray-100 bg-white text-gray-400 grayscale'
+                                            }`}
+                                        >
+                                            <span className={`w-3 h-3 rounded-full mr-2 ${
+                                                tier === 1 ? 'bg-red-500' : tier === 2 ? 'bg-orange-500' : 'bg-green-500'
+                                            }`} />
+                                            {t(`common.tier${tier}`)}
+                                        </button>
+                                    ))}
+                                    <button
+                                        type="button"
+                                        onClick={() => setCurrentSoftware(prev => ({ ...prev!, criticality: undefined }))}
+                                        className={`py-2 px-3 rounded-lg border-2 text-xs ${!currentSoftware?.criticality ? 'border-gray-400 bg-gray-50 text-gray-700' : 'border-gray-100 text-gray-400'}`}
+                                    >
+                                        {t('common.none')}
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="col-span-1">

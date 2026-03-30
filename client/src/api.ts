@@ -14,6 +14,7 @@ export interface Software {
     sdan: string;
     ministere: string;
     logo: string | null;
+    criticality?: number;
 }
 
 export interface Service {
@@ -24,6 +25,7 @@ export interface Service {
     parent_id: string | null;
     parent_ids: string[];
     logo: string | null;
+    criticality?: number;
 }
 
 export interface Settings {

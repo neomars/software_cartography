@@ -24,7 +24,12 @@ const translations = {
             noImg: "Pas d'image",
             confirmDelete: "Supprimer ?",
             success: "Succès",
-            error: "Erreur"
+            error: "Erreur",
+            criticality: "Criticité",
+            tier1: "Tier 1",
+            tier2: "Tier 2",
+            tier3: "Tier 3",
+            none: "Aucune"
         },
         softwares: {
             title: "Gestion des Logiciels",
@@ -77,7 +82,12 @@ const translations = {
             noImg: "No image",
             confirmDelete: "Delete?",
             success: "Success",
-            error: "Error"
+            error: "Error",
+            criticality: "Criticality",
+            tier1: "Tier 1",
+            tier2: "Tier 2",
+            tier3: "Tier 3",
+            none: "None"
         },
         softwares: {
             title: "Software Management",

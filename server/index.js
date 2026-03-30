@@ -232,6 +232,8 @@ app.post('/api/services', (req, res) => {
                 childSw.parent_id = newService.id;
                 if (!childSw.parent_ids) childSw.parent_ids = [];
                 if (!childSw.parent_ids.includes(newService.id)) childSw.parent_ids.push(newService.id);
+                // Inherit criticality
+                if (newService.criticality !== undefined) childSw.criticality = newService.criticality;
             }
             const childSrv = db.services.find(s => s.id === childId);
             if (childSrv) {
@@ -312,6 +314,10 @@ app.put('/api/services/:id', (req, res) => {
                     if (!childSw.parent_ids) childSw.parent_ids = [];
                     if (!childSw.parent_ids.includes(newService.id)) childSw.parent_ids.push(newService.id);
                     childSw.parent_id = childSw.parent_ids[0] || null;
+                    // Inherit criticality if changed
+                    if (newService.criticality !== oldService.criticality && newService.criticality !== undefined) {
+                        childSw.criticality = newService.criticality;
+                    }
                 }
                 const childSrv = db.services.find(s => s.id === childId);
                 if (childSrv) {
@@ -319,6 +325,15 @@ app.put('/api/services/:id', (req, res) => {
                     if (!childSrv.parent_ids.includes(newService.id)) childSrv.parent_ids.push(newService.id);
                     childSrv.parent_id = childSrv.parent_ids[0] || null;
                 }
+            });
+        }
+
+        // Explicitly check for criticality update on ALL current child softwares,
+        // even those not in the current 'children' list (to be safe, though children list should be exhaustive)
+        if (newService.criticality !== oldService.criticality && newService.criticality !== undefined) {
+            newService.children.forEach(childId => {
+                const childSw = db.softwares.find(s => s.id === childId);
+                if (childSw) childSw.criticality = newService.criticality;
             });
         }
 
