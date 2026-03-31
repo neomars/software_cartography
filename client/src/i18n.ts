@@ -51,7 +51,11 @@ const translations = {
             refresh: "Rafraîchir",
             png: "PNG",
             names: "Noms",
-            logos: "Logos"
+            logos: "Logos",
+            startSim: "Simuler Panne",
+            stopSim: "Arrêter Simulation",
+            impacted: "Éléments Impactés",
+            reset: "Réinitialiser"
         },
         settings: {
             title: "Paramètres de l'application",
@@ -109,7 +113,11 @@ const translations = {
             refresh: "Refresh",
             png: "PNG",
             names: "Names",
-            logos: "Logos"
+            logos: "Logos",
+            startSim: "Simulate Failure",
+            stopSim: "Stop Simulation",
+            impacted: "Impacted Elements",
+            reset: "Reset"
         },
         settings: {
             title: "Application Settings",

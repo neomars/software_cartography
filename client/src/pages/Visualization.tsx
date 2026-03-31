@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import ForceGraph3D from 'react-force-graph-3d';
 import * as THREE from 'three';
 import { getAllData } from '../api';
-import { Download, RefreshCw, Box, Type } from 'lucide-react';
+import { Download, RefreshCw, Box, Type, AlertTriangle, Play, Pause, XCircle } from 'lucide-react';
 import { useTranslation } from '../i18n';
 
 const Visualization = () => {
@@ -15,6 +15,9 @@ const Visualization = () => {
     const [selectedNode, setSelectedNode] = useState<any>(null);
     const [highlightNodes, setHighlightNodes] = useState(new Set());
     const [highlightLinks, setHighlightLinks] = useState(new Set());
+    const [isSimulationMode, setIsSimulationMode] = useState(false);
+    const [failedNodeIds, setFailedNodeIds] = useState<Set<string>>(new Set());
+    const [impactedNodeIds, setImpactedNodeIds] = useState<Set<string>>(new Set());
     const fgRef = useRef<any>(null);
 
     const loadData = useCallback(async () => {
@@ -89,6 +92,29 @@ const Visualization = () => {
         }
     }, [graphData]);
 
+    const computeImpact = useCallback((failedIds: Set<string>) => {
+        const impacted = new Set<string>();
+        if (failedIds.size === 0) return impacted;
+
+        const queue = Array.from(failedIds);
+        const visited = new Set<string>(failedIds);
+
+        while (queue.length > 0) {
+            const currentId = queue.shift()!;
+            graphData.links.forEach(link => {
+                const sId = typeof link.source === 'object' ? link.source.id : link.source;
+                const tId = typeof link.target === 'object' ? link.target.id : link.target;
+
+                if (sId === currentId && !visited.has(tId)) {
+                    visited.add(tId);
+                    impacted.add(tId);
+                    queue.push(tId);
+                }
+            });
+        }
+        return impacted;
+    }, [graphData.links]);
+
     const updateHighlight = (node: any) => {
         setHighlightNodes(new Set());
         setHighlightLinks(new Set());
@@ -123,19 +149,30 @@ const Visualization = () => {
     };
 
     const handleNodeClick = useCallback((node: any) => {
-        // Aim at node from outside it
-        const distance = 150;
-        const distRatio = 1 + distance / Math.hypot(node.x, node.y, node.z);
+        if (isSimulationMode) {
+            const newFailed = new Set(failedNodeIds);
+            if (newFailed.has(node.id)) {
+                newFailed.delete(node.id);
+            } else {
+                newFailed.add(node.id);
+            }
+            setFailedNodeIds(newFailed);
+            setImpactedNodeIds(computeImpact(newFailed));
+        } else {
+            // Aim at node from outside it
+            const distance = 150;
+            const distRatio = 1 + distance / Math.hypot(node.x, node.y, node.z);
 
-        fgRef.current.cameraPosition(
-            { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio }, // new pos
-            node, // lookAt ({ x, y, z })
-            1500  // ms transition duration
-        );
+            fgRef.current.cameraPosition(
+                { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio }, // new pos
+                node, // lookAt ({ x, y, z })
+                1500  // ms transition duration
+            );
 
-        setSelectedNode(node);
-        updateHighlight(node);
-    }, [graphData, fgRef]);
+            setSelectedNode(node);
+            updateHighlight(node);
+        }
+    }, [graphData, fgRef, isSimulationMode, failedNodeIds, computeImpact]);
 
     const exportImage = () => {
         const canvas = document.querySelector('canvas');
@@ -149,9 +186,13 @@ const Visualization = () => {
 
     const nodeObject = useCallback((node: any) => {
         const isHighlighted = highlightNodes.has(node.id);
-        const anySelected = highlightNodes.size > 0;
+        const isFailed = failedNodeIds.has(node.id);
+        const isImpacted = impactedNodeIds.has(node.id);
+
+        const anySelection = highlightNodes.size > 0 || failedNodeIds.size > 0;
+        const dimOpacity = anySelection && !isHighlighted && !isFailed && !isImpacted ? 0.15 : 1.0;
+
         const group = new THREE.Group();
-        const dimOpacity = anySelected && !isHighlighted ? 0.15 : 1.0;
 
         if (node.isService) {
             const radius = node.radius || 45;
@@ -165,7 +206,10 @@ const Visualization = () => {
                 canvas.height = fontSize + 20;
 
                 context.font = `Bold ${fontSize}px Arial`;
-                context.fillStyle = isHighlighted ? '#ffffff' : (node.color || '#3b82f6');
+                if (isFailed) context.fillStyle = '#ef4444';
+                else if (isImpacted) context.fillStyle = '#f97316';
+                else context.fillStyle = isHighlighted ? '#ffffff' : (node.color || '#3b82f6');
+
                 context.textAlign = 'center';
                 context.textBaseline = 'middle';
                 context.fillText(node.name, canvas.width / 2, canvas.height / 2);
@@ -176,17 +220,17 @@ const Visualization = () => {
                     opacity: dimOpacity
                 }));
                 const aspectRatio = canvas.width / canvas.height;
-                const height = radius * (isHighlighted ? 0.8 : 0.6);
+                const height = radius * (isHighlighted || isFailed ? 0.8 : 0.6);
                 sprite.scale.set(height * aspectRatio, height, 1);
                 sprite.position.y = -radius * 1.2; // Position below
                 group.add(sprite);
             }
 
             // Glow effect for service
-            if (isHighlighted) {
-                const glowGeometry = new THREE.SphereGeometry(radius * 0.5);
+            if (isHighlighted || isFailed || isImpacted) {
+                const glowGeometry = new THREE.SphereGeometry(radius * (isFailed ? 0.6 : 0.5));
                 const glowMaterial = new THREE.MeshBasicMaterial({
-                    color: node.color || '#3b82f6',
+                    color: isFailed ? '#ef4444' : (isImpacted ? '#f97316' : (node.color || '#3b82f6')),
                     transparent: true,
                     opacity: 0.5 * dimOpacity
                 });
@@ -195,7 +239,7 @@ const Visualization = () => {
 
             return group;
         } else {
-            if (showLogos && node.logo) {
+            if (showLogos && node.logo && !isFailed && !isImpacted) {
                 const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
                     map: new THREE.TextureLoader().load(`http://localhost:5000${node.logo}`),
                     transparent: true,
@@ -205,11 +249,13 @@ const Visualization = () => {
                 sprite.scale.set(scale, scale, 1);
                 return sprite;
             } else {
-                const geometry = new THREE.SphereGeometry(isHighlighted ? 8 : 5);
+                const nodeSize = isHighlighted || isFailed ? 8 : 5;
+                const geometry = new THREE.SphereGeometry(nodeSize);
+                const color = isFailed ? '#ef4444' : (isImpacted ? '#f97316' : (node.color || '#ffffff'));
                 const material = new THREE.MeshLambertMaterial({
-                    color: node.color || '#ffffff',
-                    emissive: isHighlighted ? (node.color || '#ffffff') : '#000000',
-                    emissiveIntensity: isHighlighted ? 0.5 : 0,
+                    color: color,
+                    emissive: (isHighlighted || isFailed || isImpacted) ? color : '#000000',
+                    emissiveIntensity: (isHighlighted || isFailed || isImpacted) ? 0.5 : 0,
                     transparent: true,
                     opacity: dimOpacity
                 });
@@ -218,14 +264,17 @@ const Visualization = () => {
                 const canvas = document.createElement('canvas');
                 const context = canvas.getContext('2d');
                 if (context) {
-                    const fontSize = isHighlighted ? 80 : 60;
-                    context.font = isHighlighted ? `Bold ${fontSize}px Arial` : `${fontSize}px Arial`;
+                    const fontSize = isHighlighted || isFailed ? 80 : 60;
+                    context.font = (isHighlighted || isFailed) ? `Bold ${fontSize}px Arial` : `${fontSize}px Arial`;
                     const textWidth = context.measureText(node.name).width;
                     canvas.width = textWidth + 40;
                     canvas.height = fontSize + 20;
 
-                    context.font = isHighlighted ? `Bold ${fontSize}px Arial` : `${fontSize}px Arial`;
-                    context.fillStyle = isHighlighted ? (node.color || '#ffffff') : 'white';
+                    context.font = (isHighlighted || isFailed) ? `Bold ${fontSize}px Arial` : `${fontSize}px Arial`;
+                    if (isFailed) context.fillStyle = '#ef4444';
+                    else if (isImpacted) context.fillStyle = '#f97316';
+                    else context.fillStyle = isHighlighted ? (node.color || '#ffffff') : 'white';
+
                     context.textAlign = 'center';
                     context.textBaseline = 'middle';
                     context.fillText(node.name, canvas.width / 2, canvas.height / 2);
@@ -237,33 +286,36 @@ const Visualization = () => {
                         depthTest: false
                     }));
                     const aspectRatio = canvas.width / canvas.height;
-                    const height = isHighlighted ? 12 : 9;
+                    const height = isHighlighted || isFailed ? 12 : 9;
                     sprite.scale.set(height * aspectRatio, height, 1);
-                    sprite.position.y = isHighlighted ? -15 : -10; // Position below
+                    sprite.position.y = isHighlighted || isFailed ? -15 : -10; // Position below
                     sprite.renderOrder = 999;
                     group.add(sprite);
                 }
                 return group;
             }
         }
-    }, [showLogos, highlightNodes]);
+    }, [showLogos, highlightNodes, failedNodeIds, impactedNodeIds]);
 
     const linkColor = useCallback((link: any) => {
+        const sId = typeof link.source === 'object' ? link.source.id : link.source;
         const isHighlighted = highlightLinks.has(link);
-        const baseAlpha = isHighlighted ? 1.0 : (linkOpacity / 100);
-        const alpha = Math.round(baseAlpha * 255).toString(16).padStart(2, '0');
+        const isFailedLink = failedNodeIds.has(sId) || impactedNodeIds.has(sId);
 
-        if (isHighlighted) {
-            // Bright white for highlighted links
-            return `#ffffff${alpha}`;
-        }
+        const baseAlpha = isHighlighted || isFailedLink ? 1.0 : (linkOpacity / 100);
+        const anySelection = highlightNodes.size > 0 || failedNodeIds.size > 0;
+        const dimFactor = anySelection && !isHighlighted && !isFailedLink ? 0.2 : 1.0;
 
-        // Dim color if a node is selected but this link is not highlighted
-        const dimFactor = highlightNodes.size > 0 ? 0.2 : 1.0;
-        const dimAlphaNum = Math.round(baseAlpha * dimFactor * 255);
-        const dimAlpha = dimAlphaNum.toString(16).padStart(2, '0');
-        return `#ffffff${dimAlpha}`;
-    }, [highlightLinks, highlightNodes, linkOpacity]);
+        const alphaNum = Math.round(baseAlpha * dimFactor * 255);
+        const alpha = alphaNum.toString(16).padStart(2, '0');
+
+        if (isFailedLink) return `#ef4444${alpha}`;
+        return isHighlighted ? `#ffffff${alpha}` : `#ffffff${alpha}`;
+    }, [highlightLinks, highlightNodes, failedNodeIds, impactedNodeIds, linkOpacity]);
+
+    const impactedList = useMemo(() => {
+        return graphData.nodes.filter(n => impactedNodeIds.has(n.id));
+    }, [graphData.nodes, impactedNodeIds]);
 
     return (
         <div className="h-screen w-full relative bg-[#050505]">
@@ -272,7 +324,54 @@ const Visualization = () => {
                     <button onClick={loadData} className="p-3 hover:bg-white/10 rounded-xl transition flex items-center space-x-2"><RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} /><span className="text-xs">{t('viz.refresh')}</span></button>
                     <button onClick={exportImage} className="p-3 hover:bg-white/10 rounded-xl transition flex items-center space-x-2"><Download className="w-5 h-5" /><span className="text-xs">{t('viz.png')}</span></button>
                     <button onClick={() => setShowLogos(!showLogos)} className="p-3 hover:bg-white/10 rounded-xl transition flex items-center space-x-2">{showLogos ? <Type className="w-5 h-5" /> : <Box className="w-5 h-5" />}<span className="text-xs">{showLogos ? t('viz.names') : t('viz.logos')}</span></button>
+                    <button
+                        onClick={() => {
+                            setIsSimulationMode(!isSimulationMode);
+                            if (!isSimulationMode) {
+                                setSelectedNode(null);
+                                setHighlightNodes(new Set());
+                                setHighlightLinks(new Set());
+                            } else {
+                                setFailedNodeIds(new Set());
+                                setImpactedNodeIds(new Set());
+                            }
+                        }}
+                        className={`p-3 rounded-xl transition flex items-center space-x-2 ${isSimulationMode ? 'bg-red-500/50 hover:bg-red-500/70 text-white' : 'hover:bg-white/10'}`}
+                    >
+                        {isSimulationMode ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                        <span className="text-xs">{isSimulationMode ? t('viz.stopSim') : t('viz.startSim')}</span>
+                    </button>
                 </div>
+
+                {isSimulationMode && impactedList.length > 0 && (
+                    <div className="bg-white/10 backdrop-blur-lg p-4 rounded-2xl border border-white/20 text-white w-64 max-h-[60vh] overflow-y-auto">
+                        <div className="flex items-center space-x-2 mb-3 text-orange-400">
+                            <AlertTriangle className="w-5 h-5" />
+                            <h3 className="font-bold text-sm">{t('viz.impacted')} ({impactedList.length})</h3>
+                        </div>
+                        <ul className="space-y-1">
+                            {impactedList.map(node => (
+                                <li key={node.id} className="text-xs py-1 px-2 hover:bg-white/5 rounded flex items-center justify-between">
+                                    <span>{node.name}</span>
+                                    <span className={`w-2 h-2 rounded-full ${node.isService ? 'bg-blue-400' : 'bg-white/50'}`}></span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
+                {isSimulationMode && failedNodeIds.size > 0 && (
+                     <button
+                        onClick={() => {
+                            setFailedNodeIds(new Set());
+                            setImpactedNodeIds(new Set());
+                        }}
+                        className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-xl transition flex items-center justify-center space-x-2 border border-white/20"
+                     >
+                        <XCircle className="w-4 h-4" />
+                        <span className="text-xs">{t('viz.reset')}</span>
+                     </button>
+                )}
             </div>
             <ForceGraph3D
                 ref={fgRef}
