@@ -24,6 +24,7 @@ const AdminSoftwares: React.FC = () => {
     const [currentSoftware, setCurrentSoftware] = useState<Partial<Software> | null>(null);
     const [viewMode, setViewMode] = useState<'grid' | 'graph' | 'tree'>('grid');
     const fgRef = useRef<any>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const loadData = useCallback(async () => {
         try {
@@ -167,20 +168,24 @@ const AdminSoftwares: React.FC = () => {
                     </div>
                 </div>
                 <div className="flex space-x-4">
-                    <label className="flex items-center px-4 py-2 bg-green-600 text-white rounded cursor-pointer hover:bg-green-700">
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                    >
                         <Upload className="mr-2 w-4 h-4" /> {t('common.import')}
-                        <input
-                            type="file"
-                            className="hidden"
-                            accept=".csv"
-                            onChange={async (e) => {
-                                if (e.target.files && e.target.files[0]) {
-                                    await importCSV(e.target.files[0]);
-                                    loadData();
-                                }
-                            }}
-                        />
-                    </label>
+                    </button>
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        accept=".csv"
+                        onChange={async (e) => {
+                            if (e.target.files && e.target.files[0]) {
+                                await importCSV(e.target.files[0]);
+                                loadData();
+                            }
+                        }}
+                    />
                     <button
                         onClick={() => { setCurrentSoftware({ parent_ids: [], children: [] }); setIsModalOpen(true); }}
                         className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
@@ -277,7 +282,7 @@ const AdminSoftwares: React.FC = () => {
                                                 )}
                                                 <input
                                                     type="file"
-                                                    className="absolute inset-0 opacity-0 cursor-pointer"
+                                                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                                                     onChange={async (e) => {
                                                         if (e.target.files && e.target.files[0]) {
                                                             await uploadLogo('software', sw.id, e.target.files[0]);
