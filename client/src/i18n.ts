@@ -29,7 +29,12 @@ const translations = {
             tier1: "Tier 1",
             tier2: "Tier 2",
             tier3: "Tier 3",
-            none: "Aucune"
+            none: "Aucune",
+            icon: "Icône",
+            selectIcon: "Choisir un icône",
+            chooseIcon: "Librairie d'icônes",
+            search: "Rechercher...",
+            noResults: "Aucun résultat"
         },
         services: {
             title: "Gestion des Services",
@@ -96,7 +101,12 @@ const translations = {
             tier1: "Tier 1",
             tier2: "Tier 2",
             tier3: "Tier 3",
-            none: "None"
+            none: "None",
+            icon: "Icon",
+            selectIcon: "Select an icon",
+            chooseIcon: "Icon Library",
+            search: "Search...",
+            noResults: "No results"
         },
         services: {
             title: "Service Management",

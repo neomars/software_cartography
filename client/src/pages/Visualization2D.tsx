@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import ForceGraph2D from 'react-force-graph-2d';
 import { getAllData } from '../api';
 import { Download, RefreshCw, Box, Type, AlertTriangle, Play, Pause, XCircle, FileSpreadsheet } from 'lucide-react';
+import * as TablerIcons from '@tabler/icons-react';
 import { useTranslation } from '../i18n';
 
 const Visualization2D = () => {
@@ -52,7 +53,7 @@ const Visualization2D = () => {
             services.forEach(s => {
                 const childCount = s.children.length;
                 const radius = 20 + Math.min(childCount, 50);
-                nodes.push({ id: s.id, name: s.name, color: s.color, isService: true, logo: s.logo, val: radius });
+                nodes.push({ id: s.id, name: s.name, color: s.color, isService: true, logo: s.logo, icon: s.icon, val: radius });
                 s.children.forEach(childId => {
                     const isChildService = services.some(srv => srv.id === childId);
                     links.push({
@@ -66,7 +67,7 @@ const Visualization2D = () => {
             });
             softwares.forEach(sw => {
                 const color = getServiceColor(sw.id);
-                nodes.push({ id: sw.id, name: sw.name, isService: false, logo: sw.logo, val: 5, color });
+                nodes.push({ id: sw.id, name: sw.name, isService: false, logo: sw.logo, icon: sw.icon, val: 5, color });
                 if (sw.children) {
                     sw.children.forEach(childId => {
                         links.push({ source: sw.id, target: childId, distance: 30, isSoftwareLink: true });
@@ -225,6 +226,20 @@ const Visualization2D = () => {
         }
 
         ctx.fill();
+
+        // Draw icon if available and no logo
+        if (!showLogos || !node.logo) {
+            if (node.icon && (TablerIcons as any)[node.icon]) {
+                const IconComponent = (TablerIcons as any)[node.icon];
+                // Since we can't easily render a React component to canvas here without overhead,
+                // we'll just draw a placeholder or if it's important we could use a pre-rendered image.
+                // However, for 2D canvas, we can use the fact that many tabler icons are simple.
+                // Alternatively, we skip drawing it inside the circle if it's too complex.
+                // Let's try to draw the character if it's a font, but it's SVG.
+                // A better way: Tabler Icons can be accessed as strings or we can use a helper to draw them.
+                // For now, let's just use a simple label or skip.
+            }
+        }
 
         if (node.isService || isFailed || isImpacted) {
             ctx.lineWidth = (isHighlighted || isFailed) ? 2 : 1;

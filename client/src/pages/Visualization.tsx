@@ -3,6 +3,7 @@ import ForceGraph3D from 'react-force-graph-3d';
 import * as THREE from 'three';
 import { getAllData } from '../api';
 import { Download, RefreshCw, Box, Type, AlertTriangle, Play, Pause, XCircle, FileSpreadsheet } from 'lucide-react';
+import * as TablerIcons from '@tabler/icons-react';
 import { useTranslation } from '../i18n';
 
 const Visualization = () => {
@@ -55,7 +56,7 @@ const Visualization = () => {
             services.forEach(s => {
                 const childCount = s.children.length;
                 const radius = 40 + Math.min(childCount, 100) * 2;
-                nodes.push({ id: s.id, name: s.name, color: s.color, isService: true, logo: s.logo, val: 60, radius });
+                nodes.push({ id: s.id, name: s.name, color: s.color, isService: true, logo: s.logo, icon: s.icon, val: 60, radius });
                 s.children.forEach(childId => {
                     const isChildService = services.some(srv => srv.id === childId);
                     links.push({
@@ -69,7 +70,7 @@ const Visualization = () => {
             });
             softwares.forEach(sw => {
                 const color = getServiceColor(sw.id);
-                nodes.push({ id: sw.id, name: sw.name, isService: false, logo: sw.logo, val: 8, color });
+                nodes.push({ id: sw.id, name: sw.name, isService: false, logo: sw.logo, icon: sw.icon, val: 8, color });
                 if (sw.children) {
                     sw.children.forEach(childId => {
                         links.push({ source: sw.id, target: childId, distance: 10, isSoftwareLink: true });

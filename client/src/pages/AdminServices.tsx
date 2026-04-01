@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { getServices, getSoftwares, deleteService, createService, updateService, Software, Service, uploadLogo } from '../api';
 import { Trash2, Edit, Plus, X, LayoutGrid, Network, GitGraph } from 'lucide-react';
+import * as TablerIcons from '@tabler/icons-react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { useTranslation } from '../i18n';
 import { hexToHsl, hslToHex } from '../utils/colorUtils';
 import MultiSelect from '../components/MultiSelect';
+import IconPicker from '../components/IconPicker';
 
 interface Option {
     id: string;
@@ -204,6 +206,10 @@ const AdminServices: React.FC = () => {
                                 <div className="relative w-12 h-12 border rounded overflow-hidden mr-3">
                                     {service.logo ? (
                                         <img src={`http://localhost:5000${service.logo}`} alt="" className="w-full h-full object-cover" />
+                                    ) : service.icon && (TablerIcons as any)[service.icon] ? (
+                                        <div className="w-full h-full bg-blue-50 flex items-center justify-center text-blue-600">
+                                            {React.createElement((TablerIcons as any)[service.icon], { className: "w-6 h-6" })}
+                                        </div>
                                     ) : (
                                         <div className="w-full h-full bg-gray-100 flex items-center justify-center text-[10px]">{t('common.logo')}</div>
                                     )}
@@ -368,14 +374,23 @@ const AdminServices: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-2">{t('services.components')}</label>
-                                <MultiSelect
-                                    options={childOptions}
-                                    selected={currentService?.children || []}
-                                    onChange={(ids) => setCurrentService(prev => ({ ...prev!, children: ids }))}
-                                    placeholder={t('softwares.none')}
-                                />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">{t('common.icon')}</label>
+                                    <IconPicker
+                                        selectedIcon={currentService?.icon}
+                                        onSelect={(iconName) => setCurrentService(prev => ({ ...prev!, icon: iconName }))}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">{t('services.components')}</label>
+                                    <MultiSelect
+                                        options={childOptions}
+                                        selected={currentService?.children || []}
+                                        onChange={(ids) => setCurrentService(prev => ({ ...prev!, children: ids }))}
+                                        placeholder={t('softwares.none')}
+                                    />
+                                </div>
                             </div>
                             <div className="flex justify-end pt-4">
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="mr-4 px-4 py-2 border rounded">{t('common.cancel')}</button>

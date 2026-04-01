@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { getSoftwares, getServices, deleteSoftware, importCSV, uploadLogo, Software, Service, createSoftware, updateSoftware } from '../api';
 import { Upload, Trash2, Edit, Plus, X, ArrowUpDown, LayoutGrid, Network, GitGraph } from 'lucide-react';
+import * as TablerIcons from '@tabler/icons-react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { useRef } from 'react';
 import { useTranslation } from '../i18n';
 import MultiSelect from '../components/MultiSelect';
+import IconPicker from '../components/IconPicker';
 
 interface SelectOption {
     id: string;
@@ -236,7 +238,7 @@ const AdminSoftwares: React.FC = () => {
                 <table className="w-full text-left">
                     <thead className="bg-gray-50 border-b">
                         <tr>
-                            <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">{t('common.logo')}</th>
+                            <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">{t('common.logo')} / {t('common.icon')}</th>
                             <th
                                 className="px-6 py-3 text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
                                 onClick={() => handleSort('name')}
@@ -266,22 +268,25 @@ const AdminSoftwares: React.FC = () => {
                             return (
                                 <tr key={sw.id}>
                                     <td className="px-6 py-4">
-                                        <div className="relative w-10 h-10 border rounded overflow-hidden">
-                                            {sw.logo ? (
-                                                <img src={`http://localhost:5000${sw.logo}`} alt="" className="w-full h-full object-cover" />
-                                            ) : (
-                                                <div className="w-full h-full bg-gray-100 flex items-center justify-center text-[10px] text-center px-1 leading-tight">{t('common.noImg')}</div>
-                                            )}
-                                            <input
-                                                type="file"
-                                                className="absolute inset-0 opacity-0 cursor-pointer"
-                                                onChange={async (e) => {
-                                                    if (e.target.files && e.target.files[0]) {
-                                                        await uploadLogo('software', sw.id, e.target.files[0]);
-                                                        loadData();
-                                                    }
-                                                }}
-                                            />
+                                        <div className="flex items-center space-x-3">
+                                            <div className="relative w-10 h-10 border rounded overflow-hidden flex-shrink-0">
+                                                {sw.logo ? (
+                                                    <img src={`http://localhost:5000${sw.logo}`} alt="" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full bg-gray-100 flex items-center justify-center text-[10px] text-center px-1 leading-tight">{t('common.noImg')}</div>
+                                                )}
+                                                <input
+                                                    type="file"
+                                                    className="absolute inset-0 opacity-0 cursor-pointer"
+                                                    onChange={async (e) => {
+                                                        if (e.target.files && e.target.files[0]) {
+                                                            await uploadLogo('software', sw.id, e.target.files[0]);
+                                                            loadData();
+                                                        }
+                                                    }}
+                                                />
+                                            </div>
+                                            {sw.icon && (TablerIcons as any)[sw.icon] && React.createElement((TablerIcons as any)[sw.icon], { className: "w-6 h-6 text-gray-400" })}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 font-medium">
@@ -440,6 +445,14 @@ const AdminSoftwares: React.FC = () => {
                                     onChange={e => setCurrentSoftware(prev => ({ ...prev!, description: e.target.value }))}
                                 />
                             </div>
+                                    <div className="col-span-1">
+                                        <label className="block text-sm font-medium mb-1">{t('common.icon')}</label>
+                                        <IconPicker
+                                            selectedIcon={currentSoftware?.icon}
+                                            onSelect={(iconName) => setCurrentSoftware(prev => ({ ...prev!, icon: iconName }))}
+                                        />
+                                    </div>
+
                             <div className="col-span-2 flex justify-end mt-4">
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="mr-4 px-4 py-2 border rounded">{t('common.cancel')}</button>
                                 <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">{t('common.save')}</button>
