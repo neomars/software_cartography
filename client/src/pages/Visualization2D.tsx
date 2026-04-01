@@ -1,18 +1,15 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import ForceGraph3D from 'react-force-graph-3d';
-import * as THREE from 'three';
+import ForceGraph2D from 'react-force-graph-2d';
 import { getAllData } from '../api';
 import { Download, RefreshCw, Box, Type, AlertTriangle, Play, Pause, XCircle, FileSpreadsheet } from 'lucide-react';
 import { useTranslation } from '../i18n';
 
-const Visualization = () => {
+const Visualization2D = () => {
     const { t } = useTranslation();
     const [graphData, setGraphData] = useState<{ nodes: any[], links: any[] }>({ nodes: [], links: [] });
     const [loading, setLoading] = useState(true);
     const [showLogos, setShowLogos] = useState(true);
     const [linkOpacity, setLinkOpacity] = useState(60);
-    const [hoverNode, setHoverNode] = useState<any>(null);
-    const [selectedNode, setSelectedNode] = useState<any>(null);
     const [highlightNodes, setHighlightNodes] = useState(new Set());
     const [highlightLinks, setHighlightLinks] = useState(new Set());
     const [isSimulationMode, setIsSimulationMode] = useState(false);
@@ -54,14 +51,14 @@ const Visualization = () => {
 
             services.forEach(s => {
                 const childCount = s.children.length;
-                const radius = 40 + Math.min(childCount, 100) * 2;
-                nodes.push({ id: s.id, name: s.name, color: s.color, isService: true, logo: s.logo, val: 60, radius });
+                const radius = 20 + Math.min(childCount, 50);
+                nodes.push({ id: s.id, name: s.name, color: s.color, isService: true, logo: s.logo, val: radius });
                 s.children.forEach(childId => {
                     const isChildService = services.some(srv => srv.id === childId);
                     links.push({
                         source: s.id,
                         target: childId,
-                        distance: isChildService ? radius + 50 : radius * 0.25,
+                        distance: isChildService ? radius + 100 : radius * 2,
                         isSoftwareLink: false,
                         isServiceLink: isChildService
                     });
@@ -69,10 +66,10 @@ const Visualization = () => {
             });
             softwares.forEach(sw => {
                 const color = getServiceColor(sw.id);
-                nodes.push({ id: sw.id, name: sw.name, isService: false, logo: sw.logo, val: 8, color });
+                nodes.push({ id: sw.id, name: sw.name, isService: false, logo: sw.logo, val: 5, color });
                 if (sw.children) {
                     sw.children.forEach(childId => {
-                        links.push({ source: sw.id, target: childId, distance: 10, isSoftwareLink: true });
+                        links.push({ source: sw.id, target: childId, distance: 30, isSoftwareLink: true });
                     });
                 }
             });
@@ -84,11 +81,8 @@ const Visualization = () => {
     useEffect(() => { loadData(); }, [loadData]);
     useEffect(() => {
         if (fgRef.current) {
-            fgRef.current.d3Force('link').strength(1);
             fgRef.current.d3Force('link').distance((link: any) => link.distance || 50);
-            fgRef.current.d3Force('charge').strength(-100);
-            fgRef.current.d3Force('center').strength(0.05);
-            fgRef.current.d3Force('charge').distanceMax(500);
+            fgRef.current.d3Force('charge').strength(-200);
         }
     }, [graphData]);
 
@@ -159,27 +153,18 @@ const Visualization = () => {
             setFailedNodeIds(newFailed);
             setImpactedNodeIds(computeImpact(newFailed));
         } else {
-            // Aim at node from outside it
-            const distance = 150;
-            const distRatio = 1 + distance / Math.hypot(node.x, node.y, node.z);
-
-            fgRef.current.cameraPosition(
-                { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio }, // new pos
-                node, // lookAt ({ x, y, z })
-                1500  // ms transition duration
-            );
-
-            setSelectedNode(node);
+            fgRef.current.centerAt(node.x, node.y, 1000);
+            fgRef.current.zoom(2, 1000);
             updateHighlight(node);
         }
-    }, [graphData, fgRef, isSimulationMode, failedNodeIds, computeImpact]);
+    }, [graphData, isSimulationMode, failedNodeIds, computeImpact]);
 
     const exportImage = () => {
         const canvas = document.querySelector('canvas');
         if (canvas) {
             const link = document.createElement('a');
             const suffix = isSimulationMode ? '-simulation' : '';
-            link.download = `viz3d-export${suffix}.png`;
+            link.download = `viz2d-export${suffix}.png`;
             link.href = canvas.toDataURL('image/png');
             link.click();
         }
@@ -209,118 +194,73 @@ const Visualization = () => {
         document.body.removeChild(link);
     };
 
-    const nodeObject = useCallback((node: any) => {
+    const nodePaint = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
         const isHighlighted = highlightNodes.has(node.id);
         const isFailed = failedNodeIds.has(node.id);
         const isImpacted = impactedNodeIds.has(node.id);
 
-        const anySelection = highlightNodes.size > 0 || failedNodeIds.size > 0;
-        const dimOpacity = anySelection && !isHighlighted && !isFailed && !isImpacted ? 0.15 : 1.0;
+        const anySelected = highlightNodes.size > 0 || failedNodeIds.size > 0;
+        const dimOpacity = anySelected && !isHighlighted && !isFailed && !isImpacted ? 0.15 : 1.0;
 
-        const group = new THREE.Group();
+        const size = node.isService ? node.val : (isHighlighted || isFailed ? 8 : 4);
 
-        if (node.isService) {
-            const radius = node.radius || 45;
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            if (context) {
-                const fontSize = 60;
-                context.font = `Bold ${fontSize}px Arial`;
-                const textWidth = context.measureText(node.name).width;
-                canvas.width = textWidth + 40;
-                canvas.height = fontSize + 20;
+        ctx.save();
+        ctx.globalAlpha = dimOpacity;
 
-                context.font = `Bold ${fontSize}px Arial`;
-                if (isFailed) context.fillStyle = '#ef4444';
-                else if (isImpacted) context.fillStyle = '#f97316';
-                else context.fillStyle = isHighlighted ? '#ffffff' : (node.color || '#3b82f6');
-
-                context.textAlign = 'center';
-                context.textBaseline = 'middle';
-                context.fillText(node.name, canvas.width / 2, canvas.height / 2);
-
-                const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-                    map: new THREE.CanvasTexture(canvas),
-                    transparent: true,
-                    opacity: dimOpacity
-                }));
-                const aspectRatio = canvas.width / canvas.height;
-                const height = radius * (isHighlighted || isFailed ? 0.8 : 0.6);
-                sprite.scale.set(height * aspectRatio, height, 1);
-                sprite.position.y = -radius * 1.2; // Position below
-                group.add(sprite);
-            }
-
-            // Glow effect for service
-            if (isHighlighted || isFailed || isImpacted) {
-                const glowGeometry = new THREE.SphereGeometry(radius * (isFailed ? 0.6 : 0.5));
-                const glowMaterial = new THREE.MeshBasicMaterial({
-                    color: isFailed ? '#ef4444' : (isImpacted ? '#f97316' : (node.color || '#3b82f6')),
-                    transparent: true,
-                    opacity: 0.5 * dimOpacity
-                });
-                group.add(new THREE.Mesh(glowGeometry, glowMaterial));
-            }
-
-            return group;
-        } else {
-            if (showLogos && node.logo && !isFailed && !isImpacted) {
-                const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-                    map: new THREE.TextureLoader().load(`http://localhost:5000${node.logo}`),
-                    transparent: true,
-                    opacity: dimOpacity
-                }));
-                const scale = isHighlighted ? 25 : 15;
-                sprite.scale.set(scale, scale, 1);
-                return sprite;
-            } else {
-                const nodeSize = isHighlighted || isFailed ? 8 : 5;
-                const geometry = new THREE.SphereGeometry(nodeSize);
-                const color = isFailed ? '#ef4444' : (isImpacted ? '#f97316' : (node.color || '#ffffff'));
-                const material = new THREE.MeshLambertMaterial({
-                    color: color,
-                    emissive: (isHighlighted || isFailed || isImpacted) ? color : '#000000',
-                    emissiveIntensity: (isHighlighted || isFailed || isImpacted) ? 0.5 : 0,
-                    transparent: true,
-                    opacity: dimOpacity
-                });
-                group.add(new THREE.Mesh(geometry, material));
-
-                const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d');
-                if (context) {
-                    const fontSize = isHighlighted || isFailed ? 80 : 60;
-                    context.font = (isHighlighted || isFailed) ? `Bold ${fontSize}px Arial` : `${fontSize}px Arial`;
-                    const textWidth = context.measureText(node.name).width;
-                    canvas.width = textWidth + 40;
-                    canvas.height = fontSize + 20;
-
-                    context.font = (isHighlighted || isFailed) ? `Bold ${fontSize}px Arial` : `${fontSize}px Arial`;
-                    if (isFailed) context.fillStyle = '#ef4444';
-                    else if (isImpacted) context.fillStyle = '#f97316';
-                    else context.fillStyle = isHighlighted ? (node.color || '#ffffff') : 'white';
-
-                    context.textAlign = 'center';
-                    context.textBaseline = 'middle';
-                    context.fillText(node.name, canvas.width / 2, canvas.height / 2);
-
-                    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-                        map: new THREE.CanvasTexture(canvas),
-                        transparent: true,
-                        opacity: dimOpacity,
-                        depthTest: false
-                    }));
-                    const aspectRatio = canvas.width / canvas.height;
-                    const height = isHighlighted || isFailed ? 12 : 9;
-                    sprite.scale.set(height * aspectRatio, height, 1);
-                    sprite.position.y = isHighlighted || isFailed ? -15 : -10; // Position below
-                    sprite.renderOrder = 999;
-                    group.add(sprite);
-                }
-                return group;
-            }
+        if (isHighlighted || isFailed || isImpacted) {
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = isFailed ? '#ef4444' : (isImpacted ? '#f97316' : (node.color || '#ffffff'));
         }
-    }, [showLogos, highlightNodes, failedNodeIds, impactedNodeIds]);
+
+        // Draw node body
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, size, 0, 2 * Math.PI, false);
+
+        if (isFailed) {
+            ctx.fillStyle = '#ef4444';
+        } else if (isImpacted) {
+            ctx.fillStyle = '#f97316';
+        } else {
+            ctx.fillStyle = node.color || (node.isService ? '#3b82f6' : '#ffffff');
+        }
+
+        ctx.fill();
+
+        if (node.isService || isFailed || isImpacted) {
+            ctx.lineWidth = (isHighlighted || isFailed) ? 2 : 1;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+        }
+
+        // Special visual for failed
+        if (isFailed) {
+            ctx.beginPath();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = 'white';
+            const crossSize = size * 0.5;
+            ctx.moveTo(node.x - crossSize, node.y - crossSize);
+            ctx.lineTo(node.x + crossSize, node.y + crossSize);
+            ctx.moveTo(node.x + crossSize, node.y - crossSize);
+            ctx.lineTo(node.x - crossSize, node.y + crossSize);
+            ctx.stroke();
+        }
+
+        // Draw label
+        const label = node.name;
+        const fontSize = (node.isService ? 16 : 12) / globalScale;
+        ctx.font = `${(isHighlighted || isFailed) ? 'bold ' : ''}${fontSize}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        if (isFailed) ctx.fillStyle = '#ef4444';
+        else if (isImpacted) ctx.fillStyle = '#f97316';
+        else ctx.fillStyle = isHighlighted ? '#ffffff' : (node.isService ? '#ffffff' : '#cccccc');
+
+        const labelY = node.y + size + fontSize;
+        ctx.fillText(label, node.x, labelY);
+
+        ctx.restore();
+    }, [highlightNodes, failedNodeIds, impactedNodeIds]);
 
     const linkColor = useCallback((link: any) => {
         const sId = typeof link.source === 'object' ? link.source.id : link.source;
@@ -335,7 +275,7 @@ const Visualization = () => {
         const alpha = alphaNum.toString(16).padStart(2, '0');
 
         if (isFailedLink) return `#ef4444${alpha}`;
-        return isHighlighted ? `#ffffff${alpha}` : `#ffffff${alpha}`;
+        return isHighlighted ? `#ffffff${alpha}` : `#888888${alpha}`;
     }, [highlightLinks, highlightNodes, failedNodeIds, impactedNodeIds, linkOpacity]);
 
     const impactedList = useMemo(() => {
@@ -353,12 +293,10 @@ const Visualization = () => {
                             <button onClick={exportCSV} className="flex-1 p-3 hover:bg-white/10 rounded-xl transition flex items-center justify-center space-x-2 text-green-400" title={t('viz.csv')}><FileSpreadsheet className="w-5 h-5" /><span className="text-[10px]">{t('viz.csv')}</span></button>
                         )}
                     </div>
-                    <button onClick={() => setShowLogos(!showLogos)} className="p-3 hover:bg-white/10 rounded-xl transition flex items-center space-x-2">{showLogos ? <Type className="w-5 h-5" /> : <Box className="w-5 h-5" />}<span className="text-xs">{showLogos ? t('viz.names') : t('viz.logos')}</span></button>
                     <button
                         onClick={() => {
                             setIsSimulationMode(!isSimulationMode);
                             if (!isSimulationMode) {
-                                setSelectedNode(null);
                                 setHighlightNodes(new Set());
                                 setHighlightLinks(new Set());
                             } else {
@@ -403,30 +341,28 @@ const Visualization = () => {
                      </button>
                 )}
             </div>
-            <ForceGraph3D
+            <ForceGraph2D
                 ref={fgRef}
                 graphData={graphData}
-                nodeThreeObject={nodeObject}
-                linkWidth={(link: any) => {
-                    const isHighlighted = highlightLinks.has(link);
-                    const baseWidth = link.isSoftwareLink || link.isServiceLink ? 3 : 1;
-                    return isHighlighted ? baseWidth * 2 : baseWidth;
+                nodeCanvasObject={nodePaint}
+                nodePointerAreaPaint={(node, color, ctx) => {
+                    ctx.fillStyle = color;
+                    const size = node.isService ? node.val : 8;
+                    ctx.beginPath(); ctx.arc(node.x, node.y, size, 0, 2 * Math.PI, false); ctx.fill();
                 }}
+                linkWidth={(link: any) => highlightLinks.has(link) ? 4 : 1}
                 linkColor={linkColor}
                 linkDirectionalParticles={(link: any) => highlightLinks.has(link) ? 4 : 0}
                 linkDirectionalParticleSpeed={0.01}
                 linkDirectionalParticleWidth={4}
                 backgroundColor="#050505"
-                nodeLabel="name"
                 onNodeClick={handleNodeClick}
                 onBackgroundClick={() => {
-                    setSelectedNode(null);
                     setHighlightNodes(new Set());
                     setHighlightLinks(new Set());
                 }}
-                rendererConfig={{ preserveDrawingBuffer: true }}
             />
         </div>
     );
 };
-export default Visualization;
+export default Visualization2D;
