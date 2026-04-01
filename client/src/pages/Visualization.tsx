@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import ForceGraph3D from 'react-force-graph-3d';
 import * as THREE from 'three';
 import { getAllData } from '../api';
-import { Download, RefreshCw, Box, Type, AlertTriangle, Play, Pause, XCircle } from 'lucide-react';
+import { Download, RefreshCw, Box, Type, AlertTriangle, Play, Pause, XCircle, FileSpreadsheet } from 'lucide-react';
 import { useTranslation } from '../i18n';
 
 const Visualization = () => {
@@ -178,10 +178,35 @@ const Visualization = () => {
         const canvas = document.querySelector('canvas');
         if (canvas) {
             const link = document.createElement('a');
-            link.download = 'viz3d-export.png';
+            const suffix = isSimulationMode ? '-simulation' : '';
+            link.download = `viz3d-export${suffix}.png`;
             link.href = canvas.toDataURL('image/png');
             link.click();
         }
+    };
+
+    const exportCSV = () => {
+        if (!isSimulationMode) return;
+
+        const failed = graphData.nodes.filter(n => failedNodeIds.has(n.id)).map(n => ({ ...n, status: 'FAILED' }));
+        const impacted = graphData.nodes.filter(n => impactedNodeIds.has(n.id)).map(n => ({ ...n, status: 'IMPACTED' }));
+
+        const all = [...failed, ...impacted];
+        const csvRows = [
+            ['ID', 'Name', 'Type', 'Status'],
+            ...all.map(n => [n.id, n.name, n.isService ? 'Service' : 'Software', n.status])
+        ];
+
+        const csvContent = csvRows.map(e => e.join(",")).join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", "impact-analysis.csv");
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     const nodeObject = useCallback((node: any) => {
@@ -322,7 +347,12 @@ const Visualization = () => {
             <div className="absolute top-6 left-6 z-10 flex flex-col space-y-4">
                 <div className="bg-white/10 backdrop-blur-lg p-2 rounded-2xl flex flex-col space-y-2 border border-white/20 text-white">
                     <button onClick={loadData} className="p-3 hover:bg-white/10 rounded-xl transition flex items-center space-x-2"><RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} /><span className="text-xs">{t('viz.refresh')}</span></button>
-                    <button onClick={exportImage} className="p-3 hover:bg-white/10 rounded-xl transition flex items-center space-x-2"><Download className="w-5 h-5" /><span className="text-xs">{t('viz.png')}</span></button>
+                    <div className="flex flex-row space-x-1">
+                        <button onClick={exportImage} className="flex-1 p-3 hover:bg-white/10 rounded-xl transition flex items-center justify-center space-x-2" title={t('viz.png')}><Download className="w-5 h-5" /><span className="text-[10px]">{t('viz.png')}</span></button>
+                        {isSimulationMode && (
+                            <button onClick={exportCSV} className="flex-1 p-3 hover:bg-white/10 rounded-xl transition flex items-center justify-center space-x-2 text-green-400" title={t('viz.csv')}><FileSpreadsheet className="w-5 h-5" /><span className="text-[10px]">{t('viz.csv')}</span></button>
+                        )}
+                    </div>
                     <button onClick={() => setShowLogos(!showLogos)} className="p-3 hover:bg-white/10 rounded-xl transition flex items-center space-x-2">{showLogos ? <Type className="w-5 h-5" /> : <Box className="w-5 h-5" />}<span className="text-xs">{showLogos ? t('viz.names') : t('viz.logos')}</span></button>
                     <button
                         onClick={() => {

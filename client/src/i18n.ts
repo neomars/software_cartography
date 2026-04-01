@@ -31,13 +31,6 @@ const translations = {
             tier3: "Tier 3",
             none: "Aucune"
         },
-        softwares: {
-            title: "Gestion des Logiciels",
-            parent: "Parent (Service ou Logiciel)",
-            children: "Enfants (Logiciels)",
-            access: "Accès",
-            none: "Aucun"
-        },
         services: {
             title: "Gestion des Services",
             create: "Créer",
@@ -45,10 +38,22 @@ const translations = {
             components: "Composants",
             numComponents: "{count} composants",
             viewGrid: "Grille",
-            viewGraph: "Graphe"
+            viewGraph: "Graphe",
+            viewTree: "Arborescence"
+        },
+        softwares: {
+            title: "Gestion des Logiciels",
+            parent: "Parent (Service ou Logiciel)",
+            children: "Enfants (Logiciels)",
+            access: "Accès",
+            none: "Aucun",
+            viewGrid: "Liste",
+            viewGraph: "Graphe",
+            viewTree: "Arborescence"
         },
         viz: {
             refresh: "Rafraîchir",
+            csv: "CSV",
             png: "PNG",
             names: "Noms",
             logos: "Logos",
@@ -93,13 +98,6 @@ const translations = {
             tier3: "Tier 3",
             none: "None"
         },
-        softwares: {
-            title: "Software Management",
-            parent: "Parent (Service or Software)",
-            children: "Children (Softwares)",
-            access: "Access",
-            none: "None"
-        },
         services: {
             title: "Service Management",
             create: "Create",
@@ -107,10 +105,22 @@ const translations = {
             components: "Components",
             numComponents: "{count} components",
             viewGrid: "Grid",
-            viewGraph: "Graph"
+            viewGraph: "Graph",
+            viewTree: "Hierarchy"
+        },
+        softwares: {
+            title: "Software Management",
+            parent: "Parent (Service or Software)",
+            children: "Children (Softwares)",
+            access: "Access",
+            none: "None",
+            viewGrid: "List",
+            viewGraph: "Graph",
+            viewTree: "Hierarchy"
         },
         viz: {
             refresh: "Refresh",
+            csv: "CSV",
             png: "PNG",
             names: "Names",
             logos: "Logos",

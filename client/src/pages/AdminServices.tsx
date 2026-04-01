@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { getServices, getSoftwares, deleteService, createService, updateService, Software, Service, uploadLogo } from '../api';
-import { Trash2, Edit, Plus, X, LayoutGrid, Network } from 'lucide-react';
+import { Trash2, Edit, Plus, X, LayoutGrid, Network, GitGraph } from 'lucide-react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { useTranslation } from '../i18n';
 import { hexToHsl, hslToHex } from '../utils/colorUtils';
@@ -18,7 +18,7 @@ const AdminServices: React.FC = () => {
     const [softwares, setSoftwares] = useState<Software[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentService, setCurrentService] = useState<Partial<Service> | null>(null);
-    const [viewMode, setViewMode] = useState<'grid' | 'graph'>('grid');
+    const [viewMode, setViewMode] = useState<'grid' | 'graph' | 'tree'>('grid');
     const fgRef = useRef<any>(null);
 
     const loadData = useCallback(async () => {
@@ -131,6 +131,13 @@ const AdminServices: React.FC = () => {
                             <Network className="w-4 h-4 mr-2" />
                             {t('services.viewGraph')}
                         </button>
+                        <button
+                            onClick={() => setViewMode('tree')}
+                            className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'tree' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            <GitGraph className="w-4 h-4 mr-2" />
+                            {t('services.viewTree')}
+                        </button>
                     </div>
                 </div>
                 <button
@@ -141,11 +148,13 @@ const AdminServices: React.FC = () => {
                 </button>
             </div>
 
-            {viewMode === 'graph' ? (
+            {viewMode === 'graph' || viewMode === 'tree' ? (
                 <div className="flex-1 bg-white rounded-xl shadow-inner border border-gray-200 overflow-hidden relative min-h-[600px]">
                     <ForceGraph2D
                         ref={fgRef}
                         graphData={graphData}
+                        dagMode={viewMode === 'tree' ? 'td' : undefined}
+                        dagLevelDistance={100}
                         nodeLabel="name"
                         nodeColor={(n: any) => n.color}
                         nodeCanvasObject={(node: any, ctx, globalScale) => {

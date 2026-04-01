@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { getSoftwares, getServices, deleteSoftware, importCSV, uploadLogo, Software, Service, createSoftware, updateSoftware } from '../api';
-import { Upload, Trash2, Edit, Plus, X, ArrowUpDown } from 'lucide-react';
+import { Upload, Trash2, Edit, Plus, X, ArrowUpDown, LayoutGrid, Network, GitGraph } from 'lucide-react';
+import ForceGraph2D from 'react-force-graph-2d';
+import { useRef } from 'react';
 import { useTranslation } from '../i18n';
 import MultiSelect from '../components/MultiSelect';
 
@@ -18,6 +20,8 @@ const AdminSoftwares: React.FC = () => {
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
     const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
     const [currentSoftware, setCurrentSoftware] = useState<Partial<Software> | null>(null);
+    const [viewMode, setViewMode] = useState<'grid' | 'graph' | 'tree'>('grid');
+    const fgRef = useRef<any>(null);
 
     const loadData = useCallback(async () => {
         try {
@@ -113,10 +117,53 @@ const AdminSoftwares: React.FC = () => {
         });
     }, [softwares, sortField, sortOrder, services]);
 
+    const graphData = useMemo(() => {
+        const nodes = [
+            ...services.map(s => ({ id: s.id, name: s.name, color: s.color, isService: true })),
+            ...softwares.map(sw => ({ id: sw.id, name: sw.name, color: services.find(s => s.id === (sw.parent_ids?.[0] || sw.parent_id))?.color || '#94a3b8', isService: false }))
+        ];
+        const links: any[] = [];
+        softwares.forEach(sw => {
+            const pIds = sw.parent_ids || (sw.parent_id ? [sw.parent_id] : []);
+            pIds.forEach(pid => {
+                links.push({ source: pid, target: sw.id });
+            });
+            (sw.children || []).forEach(cid => {
+                links.push({ source: sw.id, target: cid });
+            });
+        });
+        return { nodes, links };
+    }, [services, softwares]);
+
     return (
-        <div className="p-8">
+        <div className="p-8 h-full flex flex-col">
             <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">{t('softwares.title')}</h2>
+                <div className="flex items-center space-x-6">
+                    <h2 className="text-2xl font-bold">{t('softwares.title')}</h2>
+                    <div className="flex bg-gray-100 p-1 rounded-lg">
+                        <button
+                            onClick={() => setViewMode('grid')}
+                            className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            <LayoutGrid className="w-4 h-4 mr-2" />
+                            {t('softwares.viewGrid')}
+                        </button>
+                        <button
+                            onClick={() => setViewMode('graph')}
+                            className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'graph' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            <Network className="w-4 h-4 mr-2" />
+                            {t('softwares.viewGraph')}
+                        </button>
+                        <button
+                            onClick={() => setViewMode('tree')}
+                            className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'tree' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            <GitGraph className="w-4 h-4 mr-2" />
+                            {t('softwares.viewTree')}
+                        </button>
+                    </div>
+                </div>
                 <div className="flex space-x-4">
                     <label className="flex items-center px-4 py-2 bg-green-600 text-white rounded cursor-pointer hover:bg-green-700">
                         <Upload className="mr-2 w-4 h-4" /> {t('common.import')}
@@ -140,6 +187,51 @@ const AdminSoftwares: React.FC = () => {
                     </button>
                 </div>
             </div>
+            {viewMode === 'graph' || viewMode === 'tree' ? (
+                <div className="flex-1 bg-white rounded-xl shadow-inner border border-gray-200 overflow-hidden relative min-h-[600px]">
+                    <ForceGraph2D
+                        ref={fgRef}
+                        graphData={graphData}
+                        dagMode={viewMode === 'tree' ? 'td' : undefined}
+                        dagLevelDistance={100}
+                        nodeLabel="name"
+                        nodeColor={(n: any) => n.color}
+                        nodeCanvasObject={(node: any, ctx, globalScale) => {
+                            const label = node.name;
+                            const fontSize = 12/globalScale;
+                            ctx.font = `${fontSize}px Sans-Serif`;
+                            const textWidth = ctx.measureText(label).width;
+                            const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2);
+
+                            ctx.fillStyle = node.color;
+                            ctx.beginPath();
+                            if (node.isService) {
+                                ctx.arc(node.x, node.y, 6, 0, 2 * Math.PI, false);
+                            } else {
+                                ctx.rect(node.x - 4, node.y - 4, 8, 8);
+                            }
+                            ctx.fill();
+
+                            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                            ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y + 10 - bckgDimensions[1] / 2, bckgDimensions[0], bckgDimensions[1]);
+
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillStyle = '#333';
+                            ctx.fillText(label, node.x, node.y + 10);
+                        }}
+                        linkDirectionalParticles={2}
+                        linkDirectionalParticleSpeed={0.005}
+                        onNodeClick={(node: any) => {
+                            const sw = softwares.find(s => s.id === node.id);
+                            if (sw) {
+                                setCurrentSoftware(sw);
+                                setIsModalOpen(true);
+                            }
+                        }}
+                    />
+                </div>
+            ) : (
             <div className="bg-white shadow rounded-lg overflow-hidden">
                 <table className="w-full text-left">
                     <thead className="bg-gray-50 border-b">
@@ -201,6 +293,16 @@ const AdminSoftwares: React.FC = () => {
                                                     sw.criticality === 2 ? 'bg-orange-500' : 'bg-green-500'
                                                 }`} title={t(`common.tier${sw.criticality}`)} />
                                             )}
+                                            <input
+                                                type="file"
+                                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                                onChange={async (e) => {
+                                                    if (e.target.files && e.target.files[0]) {
+                                                        await uploadLogo('software', sw.id, e.target.files[0]);
+                                                        loadData();
+                                                    }
+                                                }}
+                                            />
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 min-w-[200px]">
@@ -248,6 +350,7 @@ const AdminSoftwares: React.FC = () => {
                     </tbody>
                 </table>
             </div>
+            )}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
                     <div className="bg-white rounded-lg w-full max-w-2xl p-6 my-8">
