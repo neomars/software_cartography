@@ -3,7 +3,7 @@
     {
       "id": "3a3e68e6-553d-4131-8e7a-3c10941d6730",
       "name": "Active directory",
-      "parent_id": "577fd1ec-efa2-4c8e-8c75-fee645a1daba",
+      "parent_id": "ebf1f88b-0420-45f0-99b7-4525e4d979b3",
       "acces": true,
       "description": "Gestion des comptes",
       "intranet": "",
@@ -11,7 +11,6 @@
       "ministere": "",
       "logo": null,
       "children": [
-        "ba96e433-9dd1-4517-9ec3-408f54d70cf5",
         "0ed65dc8-371c-4486-b690-7249e86b5698",
         "cf2fae44-d2d3-4d24-89ba-481adb462afa",
         "b175f3d4-6453-4858-851d-085a1c6ea320",
@@ -21,14 +20,18 @@
     {
       "id": "ba96e433-9dd1-4517-9ec3-408f54d70cf5",
       "name": "VEEAM",
-      "parent_id": "3a3e68e6-553d-4131-8e7a-3c10941d6730",
+      "parent_id": "36d8e1d1-0185-4143-83aa-bb5dd5f39bb7",
       "acces": false,
       "description": "Logiciel de sauvegarde",
       "intranet": "",
       "sdan": "",
       "ministere": "",
       "logo": null,
-      "children": []
+      "children": [],
+      "parent_ids": [
+        "36d8e1d1-0185-4143-83aa-bb5dd5f39bb7"
+      ],
+      "criticality": 3
     },
     {
       "id": "defc09e6-bc0f-4ba6-ad78-35c2c3309c9d",
@@ -2044,7 +2047,9 @@
       "sdan": "",
       "ministere": "",
       "logo": null,
-      "children": []
+      "children": [],
+      "parent_ids": [],
+      "criticality": 3
     },
     {
       "id": "733cb5fb-3af7-4e78-9426-00f3f938bc15",
@@ -2213,6 +2218,27 @@
       "ministere": "",
       "logo": null,
       "children": []
+    },
+    {
+      "id": "0e5b1d64-97a6-4111-8df6-3ed3a8506c00",
+      "children": [],
+      "parent_id": null,
+      "name": "MultiSW",
+      "parent_ids": [
+        "bdaf78b8-3938-472a-82dd-e265ed68f14a",
+        "568130f1-5c68-46b8-b088-18e5a1188ff9"
+      ]
+    },
+    {
+      "id": "0a220fc1-89ee-46ab-a453-0adedf234992",
+      "children": [],
+      "parent_id": "9a1f1399-ab8c-4e85-9536-cf3805689868",
+      "parent_ids": [
+        "9a1f1399-ab8c-4e85-9536-cf3805689868",
+        "617a0fa5-55cd-41b6-8dec-572796eb2491"
+      ],
+      "name": "SW Multi-Parent Test",
+      "description": "This software has multiple parents."
     }
   ],
   "services": [
@@ -2220,8 +2246,13 @@
       "id": "36d8e1d1-0185-4143-83aa-bb5dd5f39bb7",
       "name": "Téléphonie fixe",
       "color": "#3b82f6",
-      "children": [],
-      "parent_id": null
+      "children": [
+        "ba96e433-9dd1-4517-9ec3-408f54d70cf5",
+        "ebf1f88b-0420-45f0-99b7-4525e4d979b3"
+      ],
+      "parent_id": null,
+      "parent_ids": [],
+      "criticality": 2
     },
     {
       "id": "2f9889a6-f01d-4e32-ac75-2970f2b5d5b3",
@@ -2378,7 +2409,8 @@
         "59994572-a26d-4921-9f51-b81b563bfbcd",
         "3d5d59c5-c8b0-4141-a16d-1ae3bc6c992d",
         "c335330d-f1e1-45ab-8ad1-68febbed8c0c",
-        "85fd0223-a377-46ce-ae19-b3339ad9ddde"
+        "85fd0223-a377-46ce-ae19-b3339ad9ddde",
+        "0a220fc1-89ee-46ab-a453-0adedf234992"
       ],
       "parent_id": null
     },
@@ -2463,7 +2495,6 @@
       "name": "Compte création/modification/suppression",
       "color": "#3b82f6",
       "children": [
-        "3a3e68e6-553d-4131-8e7a-3c10941d6730",
         "d4987e33-167c-47d6-ac73-b31399688315"
       ],
       "parent_id": null
@@ -2487,9 +2518,37 @@
         "a5218683-8576-4a57-936e-8e22e81150bc"
       ],
       "parent_id": null
+    },
+    {
+      "id": "bdaf78b8-3938-472a-82dd-e265ed68f14a",
+      "name": "Test S1",
+      "color": "#ff0000",
+      "children": [],
+      "parent_id": null
+    },
+    {
+      "id": "568130f1-5c68-46b8-b088-18e5a1188ff9",
+      "name": "Test S2",
+      "color": "#00ff00",
+      "children": [],
+      "parent_id": null
+    },
+    {
+      "id": "ebf1f88b-0420-45f0-99b7-4525e4d979b3",
+      "name": "Service Multi-Parent Test",
+      "color": "#3b82f6",
+      "children": [
+        "3a3e68e6-553d-4131-8e7a-3c10941d6730"
+      ],
+      "parent_id": "36d8e1d1-0185-4143-83aa-bb5dd5f39bb7",
+      "parent_ids": [
+        "36d8e1d1-0185-4143-83aa-bb5dd5f39bb7",
+        "71090ed5-5451-484b-b9ac-bb700c26ea26"
+      ]
     }
   ],
   "settings": {
-    "appName": "Cartographie des applications DDPN22"
+    "appName": "Cartographie des applications DDPN22",
+    "linkOpacity": 50
   }
 }
