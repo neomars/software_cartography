@@ -213,7 +213,17 @@ const AdminServices: React.FC = () => {
                                     ) : (
                                         <div className="w-full h-full bg-gray-100 flex items-center justify-center text-[10px]">{t('common.logo')}</div>
                                     )}
-                                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleLogoUpload(service.id, e)} />
+                                    <input
+                                        type="file"
+                                        id={`logo-upload-srv-${service.id}`}
+                                        className="hidden"
+                                        onChange={(e) => handleLogoUpload(service.id, e)}
+                                    />
+                                    <button
+                                        onClick={() => document.getElementById(`logo-upload-srv-${service.id}`)?.click()}
+                                        className="absolute inset-0 w-full h-full cursor-pointer"
+                                        aria-label="Upload logo"
+                                    ></button>
                                 </div>
                                 <div>
                                     <h3 className="font-bold">{service.name}</h3>

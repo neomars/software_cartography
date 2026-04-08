@@ -14,19 +14,47 @@ app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const DATA_DIR = path.join(__dirname, 'data');
+const DATASETS_DIR = path.join(DATA_DIR, 'datasets');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
-const DATA_FILE = path.join(DATA_DIR, 'db.json');
+const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
+if (!fs.existsSync(DATASETS_DIR)) fs.mkdirSync(DATASETS_DIR);
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
-if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify({ softwares: [], services: [], settings: { appName: 'Viz3D' } }, null, 2));
-} else {
-    const db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    if (!db.settings) {
-        db.settings = { appName: 'Viz3D' };
-        fs.writeFileSync(DATA_FILE, JSON.stringify(db, null, 2));
+
+if (!fs.existsSync(SETTINGS_FILE)) {
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify({ appName: 'Viz3D', activeDataset: 'SDAN', linkOpacity: 50 }, null, 2));
+}
+
+const DEFAULT_DATA = { softwares: [], services: [] };
+
+function getSettings() {
+    return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+}
+
+function updateSettings(newSettings) {
+    const settings = { ...getSettings(), ...newSettings };
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+    return settings;
+}
+
+function getActiveDatasetPath() {
+    const settings = getSettings();
+    const datasetName = settings.activeDataset || 'SDAN';
+    return path.join(DATASETS_DIR, `${datasetName}.json`);
+}
+
+function readDB() {
+    const p = getActiveDatasetPath();
+    if (!fs.existsSync(p)) {
+        fs.writeFileSync(p, JSON.stringify(DEFAULT_DATA, null, 2));
     }
+    return JSON.parse(fs.readFileSync(p, 'utf8'));
+}
+
+function writeDB(data) {
+    const p = getActiveDatasetPath();
+    fs.writeFileSync(p, JSON.stringify(data, null, 2), 'utf8');
 }
 
 const storage = multer.diskStorage({
@@ -35,37 +63,48 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-function readDB() {
-    return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-}
+// Dataset Management API
+app.get('/api/datasets', (req, res) => {
+    const files = fs.readdirSync(DATASETS_DIR);
+    const datasets = files.filter(f => f.endsWith('.json')).map(f => f.replace('.json', ''));
+    const settings = getSettings();
+    res.json({ datasets, active: settings.activeDataset });
+});
 
-function writeDB(data) {
-    console.log(`[DB] Writing to ${DATA_FILE}`);
-    // Using stringify with null, 2 for readability.
-    // No special handling needed for unicode as JSON.stringify handles it,
-    // but we can ensure it's written as UTF-8.
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
-}
+app.post('/api/datasets', (req, res) => {
+    const { name } = req.body;
+    if (!name) return res.status(400).send('Name is required');
+    const p = path.join(DATASETS_DIR, `${name}.json`);
+    if (fs.existsSync(p)) return res.status(400).send('Dataset already exists');
+    fs.writeFileSync(p, JSON.stringify(DEFAULT_DATA, null, 2));
+    res.status(201).json({ name });
+});
+
+app.post('/api/datasets/active', (req, res) => {
+    const { name } = req.body;
+    if (!name) return res.status(400).send('Name is required');
+    const p = path.join(DATASETS_DIR, `${name}.json`);
+    if (!fs.existsSync(p)) return res.status(404).send('Dataset not found');
+    updateSettings({ activeDataset: name });
+    res.json({ active: name });
+});
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 app.get('/api/softwares', (req, res) => {
     const db = readDB();
-    res.json(db.softwares);
+    res.json(db.softwares || []);
 });
 
 app.post('/api/softwares', (req, res) => {
     const db = readDB();
     const newSoftware = { id: uuidv4(), children: [], parent_id: null, parent_ids: [], ...req.body };
-
-    // Support both single parent_id and multiple parent_ids
     const allParentIds = new Set(newSoftware.parent_ids || []);
     if (newSoftware.parent_id) allParentIds.add(newSoftware.parent_id);
     newSoftware.parent_ids = Array.from(allParentIds);
     newSoftware.parent_id = newSoftware.parent_ids[0] || null;
-
+    if(!db.softwares) db.softwares = [];
     db.softwares.push(newSoftware);
-
     newSoftware.parent_ids.forEach(pId => {
         const parentService = db.services.find(s => s.id === pId);
         if (parentService && !parentService.children.includes(newSoftware.id)) {
@@ -76,7 +115,6 @@ app.post('/api/softwares', (req, res) => {
             parentSw.children.push(newSoftware.id);
         }
     });
-
     if (newSoftware.children) {
         newSoftware.children.forEach(childId => {
             const childSw = db.softwares.find(s => s.id === childId);
@@ -87,33 +125,22 @@ app.post('/api/softwares', (req, res) => {
             }
         });
     }
-
     writeDB(db);
     res.status(201).json(newSoftware);
 });
 
 app.put('/api/softwares/:id', (req, res) => {
-    console.log(`[API] PUT /api/softwares/${req.params.id}`, req.body);
     const db = readDB();
     const index = db.softwares.findIndex(s => s.id === req.params.id);
     if (index !== -1) {
         const oldSoftware = db.softwares[index];
-        const newSoftware = {
-            ...oldSoftware,
-            children: oldSoftware.children || [],
-            parent_ids: oldSoftware.parent_ids || [],
-            ...req.body
-        };
-
+        const newSoftware = { ...oldSoftware, children: oldSoftware.children || [], parent_ids: oldSoftware.parent_ids || [], ...req.body };
         const oldParents = new Set(oldSoftware.parent_ids || []);
         if (oldSoftware.parent_id) oldParents.add(oldSoftware.parent_id);
-
         const newParents = new Set(newSoftware.parent_ids || []);
         if (newSoftware.parent_id) newParents.add(newSoftware.parent_id);
         newSoftware.parent_ids = Array.from(newParents);
         newSoftware.parent_id = newSoftware.parent_ids[0] || null;
-
-        // Remove from old parents that are not in new parents
         oldParents.forEach(pId => {
             if (!newParents.has(pId)) {
                 const srv = db.services.find(s => s.id === pId);
@@ -122,8 +149,6 @@ app.put('/api/softwares/:id', (req, res) => {
                 if (sw) sw.children = (sw.children || []).filter(id => id !== req.params.id);
             }
         });
-
-        // Add to new parents
         newParents.forEach(pId => {
             const srv = db.services.find(s => s.id === pId);
             if (srv && !(srv.children || []).includes(req.params.id)) {
@@ -136,7 +161,6 @@ app.put('/api/softwares/:id', (req, res) => {
                 sw.children.push(req.params.id);
             }
         });
-
         if (newSoftware.children) {
             oldSoftware.children?.forEach(childId => {
                 if (!newSoftware.children.includes(childId)) {
@@ -156,7 +180,6 @@ app.put('/api/softwares/:id', (req, res) => {
                 }
             });
         }
-
         db.softwares[index] = newSoftware;
         writeDB(db);
         res.json(db.softwares[index]);
@@ -169,7 +192,6 @@ app.delete('/api/softwares/:id', (req, res) => {
     const db = readDB();
     const softwareToDelete = db.softwares.find(s => s.id === req.params.id);
     if (softwareToDelete) {
-        // Handle children
         if (softwareToDelete.children) {
             softwareToDelete.children.forEach(childId => {
                 const childSw = db.softwares.find(s => s.id === childId);
@@ -186,12 +208,8 @@ app.delete('/api/softwares/:id', (req, res) => {
         }
 
         db.softwares = db.softwares.filter(s => s.id !== req.params.id);
-        db.softwares.forEach(sw => {
-            if (sw.children) sw.children = sw.children.filter(childId => childId !== req.params.id);
-        });
-        db.services.forEach(service => {
-            service.children = service.children.filter(childId => childId !== req.params.id);
-        });
+        db.softwares.forEach(sw => { if (sw.children) sw.children = sw.children.filter(childId => childId !== req.params.id); });
+        db.services.forEach(service => { service.children = service.children.filter(childId => childId !== req.params.id); });
         writeDB(db);
     }
     res.status(204).send();
@@ -199,32 +217,24 @@ app.delete('/api/softwares/:id', (req, res) => {
 
 app.get('/api/services', (req, res) => {
     const db = readDB();
-    res.json(db.services);
+    res.json(db.services || []);
 });
 
 app.post('/api/services', (req, res) => {
     const db = readDB();
     const newService = { id: uuidv4(), name: '', color: '#3b82f6', children: [], parent_id: null, parent_ids: [], ...req.body };
-
-    // Support both single parent_id and multiple parent_ids
     const allParentIds = new Set(newService.parent_ids || []);
     if (newService.parent_id) allParentIds.add(newService.parent_id);
     newService.parent_ids = Array.from(allParentIds);
     newService.parent_id = newService.parent_ids[0] || null;
-
+    if(!db.services) db.services = [];
     db.services.push(newService);
-
     newService.parent_ids.forEach(pId => {
         const parentSrv = db.services.find(s => s.id === pId);
-        if (parentSrv && !parentSrv.children.includes(newService.id)) {
-            parentSrv.children.push(newService.id);
-        }
+        if (parentSrv && !parentSrv.children.includes(newService.id)) parentSrv.children.push(newService.id);
         const parentSw = db.softwares.find(s => s.id === pId);
-        if (parentSw && !parentSw.children.includes(newService.id)) {
-            parentSw.children.push(newService.id);
-        }
+        if (parentSw && !parentSw.children.includes(newService.id)) parentSw.children.push(newService.id);
     });
-
     if (newService.children) {
         newService.children.forEach(childId => {
             const childSw = db.softwares.find(s => s.id === childId);
@@ -232,7 +242,6 @@ app.post('/api/services', (req, res) => {
                 childSw.parent_id = newService.id;
                 if (!childSw.parent_ids) childSw.parent_ids = [];
                 if (!childSw.parent_ids.includes(newService.id)) childSw.parent_ids.push(newService.id);
-                // Inherit criticality
                 if (newService.criticality !== undefined) childSw.criticality = newService.criticality;
             }
             const childSrv = db.services.find(s => s.id === childId);
@@ -243,33 +252,22 @@ app.post('/api/services', (req, res) => {
             }
         });
     }
-
     writeDB(db);
     res.status(201).json(newService);
 });
 
 app.put('/api/services/:id', (req, res) => {
-    console.log(`[API] PUT /api/services/${req.params.id}`, req.body);
     const db = readDB();
     const index = db.services.findIndex(s => s.id === req.params.id);
     if (index !== -1) {
         const oldService = db.services[index];
-        const newService = {
-            ...oldService,
-            children: oldService.children || [],
-            parent_ids: oldService.parent_ids || [],
-            ...req.body
-        };
-
+        const newService = { ...oldService, children: oldService.children || [], parent_ids: oldService.parent_ids || [], ...req.body };
         const oldParents = new Set(oldService.parent_ids || []);
         if (oldService.parent_id) oldParents.add(oldService.parent_id);
-
         const newParents = new Set(newService.parent_ids || []);
         if (newService.parent_id) newParents.add(newService.parent_id);
         newService.parent_ids = Array.from(newParents);
         newService.parent_id = newService.parent_ids[0] || null;
-
-        // Remove from old parents that are not in new parents
         oldParents.forEach(pId => {
             if (!newParents.has(pId)) {
                 const srv = db.services.find(s => s.id === pId);
@@ -278,8 +276,6 @@ app.put('/api/services/:id', (req, res) => {
                 if (sw) sw.children = (sw.children || []).filter(id => id !== req.params.id);
             }
         });
-
-        // Add to new parents
         newParents.forEach(pId => {
             const srv = db.services.find(s => s.id === pId);
             if (srv && !(srv.children || []).includes(req.params.id)) {
@@ -292,7 +288,6 @@ app.put('/api/services/:id', (req, res) => {
                 sw.children.push(req.params.id);
             }
         });
-
         if (newService.children) {
             oldService.children?.forEach(childId => {
                 if (!newService.children.includes(childId)) {
@@ -314,7 +309,6 @@ app.put('/api/services/:id', (req, res) => {
                     if (!childSw.parent_ids) childSw.parent_ids = [];
                     if (!childSw.parent_ids.includes(newService.id)) childSw.parent_ids.push(newService.id);
                     childSw.parent_id = childSw.parent_ids[0] || null;
-                    // Inherit criticality if changed
                     if (newService.criticality !== oldService.criticality && newService.criticality !== undefined) {
                         childSw.criticality = newService.criticality;
                     }
@@ -327,16 +321,12 @@ app.put('/api/services/:id', (req, res) => {
                 }
             });
         }
-
-        // Explicitly check for criticality update on ALL current child softwares,
-        // even those not in the current 'children' list (to be safe, though children list should be exhaustive)
         if (newService.criticality !== oldService.criticality && newService.criticality !== undefined) {
             newService.children.forEach(childId => {
                 const childSw = db.softwares.find(s => s.id === childId);
                 if (childSw) childSw.criticality = newService.criticality;
             });
         }
-
         db.services[index] = newService;
         writeDB(db);
         res.json(newService);
@@ -349,7 +339,6 @@ app.delete('/api/services/:id', (req, res) => {
     const db = readDB();
     const serviceToDelete = db.services.find(s => s.id === req.params.id);
     if (serviceToDelete) {
-        // Handle children
         if (serviceToDelete.children) {
             serviceToDelete.children.forEach(childId => {
                 const childSw = db.softwares.find(s => s.id === childId);
@@ -364,14 +353,9 @@ app.delete('/api/services/:id', (req, res) => {
                 }
             });
         }
-
         db.services = db.services.filter(s => s.id !== req.params.id);
-        db.services.forEach(service => {
-            service.children = (service.children || []).filter(childId => childId !== req.params.id);
-        });
-        db.softwares.forEach(sw => {
-            if (sw.children) sw.children = sw.children.filter(childId => childId !== req.params.id);
-        });
+        db.services.forEach(service => { service.children = (service.children || []).filter(childId => childId !== req.params.id); });
+        db.softwares.forEach(sw => { if (sw.children) sw.children = sw.children.filter(childId => childId !== req.params.id); });
         writeDB(db);
     }
     res.status(204).send();
@@ -381,46 +365,31 @@ app.post('/api/import-csv', upload.single('file'), (req, res) => {
     if (!req.file) return res.status(400).send('No file uploaded');
     const results = [];
     fs.createReadStream(req.file.path)
-        .pipe(csv({
-            separator: ',',
-            mapHeaders: ({ header }) => header.trim(),
-            mapValues: ({ value }) => value.trim()
-        }))
+        .pipe(csv({ separator: ',', mapHeaders: ({ header }) => header.trim(), mapValues: ({ value }) => value.trim() }))
         .on('data', (data) => results.push(data))
         .on('end', () => {
             const db = readDB();
             results.forEach(row => {
-                console.log('[Import] Processing row:', row);
                 const name = row.Logiciels || row.software || row.Logiciel || 'Sans nom';
-                const existingIndex = db.softwares.findIndex(s => s.name === name);
-
+                const existingIndex = (db.softwares || []).findIndex(s => s.name === name);
                 const isTrue = (val) => {
                     if (!val) return false;
                     const v = String(val).toLowerCase().trim();
                     return v === 'true' || v === 'oui' || v === '1' || v === 'vrai';
                 };
-
-                // Try to find parent service if specified
                 let parentId = existingIndex !== -1 ? db.softwares[existingIndex].parent_id : null;
                 const serviceName = row.Service || row.service;
                 if (serviceName) {
-                    const parentService = db.services.find(s => s.name.toLowerCase().trim() === serviceName.toLowerCase().trim());
+                    const parentService = (db.services || []).find(s => s.name.toLowerCase().trim() === serviceName.toLowerCase().trim());
                     if (parentService) {
                         const newParentId = parentService.id;
-                        // Cleanup: if the parent changed, remove from old parent
                         if (parentId && parentId !== newParentId) {
                             const oldParent = db.services.find(s => s.id === parentId);
-                            if (oldParent) {
-                                oldParent.children = (oldParent.children || []).filter(id => id !== (existingIndex !== -1 ? db.softwares[existingIndex].id : ''));
-                            }
+                            if (oldParent) oldParent.children = (oldParent.children || []).filter(id => id !== (existingIndex !== -1 ? db.softwares[existingIndex].id : ''));
                         }
                         parentId = newParentId;
-                        console.log(`[Import] Found parent service: ${parentService.name} (${parentId})`);
-                    } else {
-                        console.log(`[Import] Parent service not found: ${serviceName}`);
                     }
                 }
-
                 const software = {
                     id: existingIndex !== -1 ? db.softwares[existingIndex].id : uuidv4(),
                     name: name,
@@ -434,11 +403,12 @@ app.post('/api/import-csv', upload.single('file'), (req, res) => {
                     ministere: existingIndex !== -1 ? db.softwares[existingIndex].ministere : '',
                     logo: existingIndex !== -1 ? db.softwares[existingIndex].logo : null
                 };
-
-                if (existingIndex !== -1) {
-                    db.softwares[existingIndex] = software;
-                } else {
-                    db.softwares.push(software);
+                if(!db.softwares) db.softwares = [];
+                if (existingIndex !== -1) db.softwares[existingIndex] = software;
+                else db.softwares.push(software);
+                if (parentId) {
+                    const parentService = db.services.find(s => s.id === parentId);
+                    if (parentService && !parentService.children.includes(software.id)) parentService.children.push(software.id);
                 }
 
                 // Update parent service children list
@@ -461,26 +431,22 @@ app.post('/api/upload-logo/:type/:id', upload.single('logo'), (req, res) => {
     const db = readDB();
     const logoUrl = `/uploads/${req.file.filename}`;
     if (type === 'software') {
-        const software = db.softwares.find(s => s.id === id);
+        const software = (db.softwares || []).find(s => s.id === id);
         if (software) { software.logo = logoUrl; writeDB(db); return res.json({ logoUrl }); }
     } else if (type === 'service') {
-        const service = db.services.find(s => s.id === id);
+        const service = (db.services || []).find(s => s.id === id);
         if (service) { service.logo = logoUrl; writeDB(db); return res.json({ logoUrl }); }
     }
     res.status(404).send('Not found');
 });
 
-app.get('/api/settings', (req, res) => {
-    const db = readDB();
-    res.json(db.settings || { appName: 'Viz3D' });
-});
+app.get('/api/settings', (req, res) => res.json(getSettings()));
 
 app.put('/api/settings', (req, res) => {
-    const db = readDB();
-    db.settings = { ...db.settings, ...req.body };
-    writeDB(db);
-    res.json(db.settings);
+    const settings = updateSettings(req.body);
+    res.json(settings);
 });
 
 app.get('/api/data', (req, res) => res.json(readDB()));
+
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

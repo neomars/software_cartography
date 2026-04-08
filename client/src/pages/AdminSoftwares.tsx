@@ -282,7 +282,8 @@ const AdminSoftwares: React.FC = () => {
                                                 )}
                                                 <input
                                                     type="file"
-                                                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                                    id={`logo-upload-${sw.id}`}
+                                                    className="hidden"
                                                     onChange={async (e) => {
                                                         if (e.target.files && e.target.files[0]) {
                                                             await uploadLogo('software', sw.id, e.target.files[0]);
@@ -290,6 +291,11 @@ const AdminSoftwares: React.FC = () => {
                                                         }
                                                     }}
                                                 />
+                                                <button
+                                                    onClick={() => document.getElementById(`logo-upload-${sw.id}`)?.click()}
+                                                    className="absolute inset-0 w-full h-full cursor-pointer"
+                                                    aria-label="Upload logo"
+                                                ></button>
                                             </div>
                                             {sw.icon && (TablerIcons as any)[sw.icon] && React.createElement((TablerIcons as any)[sw.icon], { className: "w-6 h-6 text-gray-400" })}
                                         </div>

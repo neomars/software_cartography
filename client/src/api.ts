@@ -33,6 +33,7 @@ export interface Service {
 export interface Settings {
     appName: string;
     linkOpacity: number;
+    activeDataset?: string;
 }
 
 export const getSoftwares = () => axios.get<Software[]>(`${API_BASE_URL}/softwares`);
@@ -59,5 +60,9 @@ export const uploadLogo = (type: 'software' | 'service', id: string, file: File)
 
 export const getSettings = () => axios.get<Settings>(`${API_BASE_URL}/settings`);
 export const updateSettings = (data: Partial<Settings>) => axios.put<Settings>(`${API_BASE_URL}/settings`, data);
+
+export const getDatasets = () => axios.get<{ datasets: string[], active: string }>(`${API_BASE_URL}/datasets`);
+export const createDataset = (name: string) => axios.post(`${API_BASE_URL}/datasets`, { name });
+export const setActiveDataset = (name: string) => axios.post(`${API_BASE_URL}/datasets/active`, { name });
 
 export const getAllData = () => axios.get<{ softwares: Software[], services: Service[], settings: Settings }>(`${API_BASE_URL}/data`);
