@@ -206,6 +206,7 @@ app.delete('/api/softwares/:id', (req, res) => {
                 }
             });
         }
+
         db.softwares = db.softwares.filter(s => s.id !== req.params.id);
         db.softwares.forEach(sw => { if (sw.children) sw.children = sw.children.filter(childId => childId !== req.params.id); });
         db.services.forEach(service => { service.children = service.children.filter(childId => childId !== req.params.id); });
@@ -408,6 +409,14 @@ app.post('/api/import-csv', upload.single('file'), (req, res) => {
                 if (parentId) {
                     const parentService = db.services.find(s => s.id === parentId);
                     if (parentService && !parentService.children.includes(software.id)) parentService.children.push(software.id);
+                }
+
+                // Update parent service children list
+                if (parentId) {
+                    const parentService = db.services.find(s => s.id === parentId);
+                    if (parentService && !parentService.children.includes(software.id)) {
+                        parentService.children.push(software.id);
+                    }
                 }
             });
             writeDB(db);
