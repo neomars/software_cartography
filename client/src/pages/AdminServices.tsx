@@ -220,8 +220,9 @@ const AdminServices: React.FC = () => {
                                         onChange={(e) => handleLogoUpload(service.id, e)}
                                     />
                                     <button
+                                        type="button"
                                         onClick={() => document.getElementById(`logo-upload-srv-${service.id}`)?.click()}
-                                        className="absolute inset-0 w-full h-full cursor-pointer"
+                                        className="absolute inset-0 w-full h-full cursor-pointer z-10"
                                         aria-label="Upload logo"
                                     ></button>
                                 </div>

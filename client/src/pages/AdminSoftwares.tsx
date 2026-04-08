@@ -292,8 +292,9 @@ const AdminSoftwares: React.FC = () => {
                                                     }}
                                                 />
                                                 <button
+                                                    type="button"
                                                     onClick={() => document.getElementById(`logo-upload-${sw.id}`)?.click()}
-                                                    className="absolute inset-0 w-full h-full cursor-pointer"
+                                                    className="absolute inset-0 w-full h-full cursor-pointer z-10"
                                                     aria-label="Upload logo"
                                                 ></button>
                                             </div>

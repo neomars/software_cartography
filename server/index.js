@@ -410,14 +410,6 @@ app.post('/api/import-csv', upload.single('file'), (req, res) => {
                     const parentService = db.services.find(s => s.id === parentId);
                     if (parentService && !parentService.children.includes(software.id)) parentService.children.push(software.id);
                 }
-
-                // Update parent service children list
-                if (parentId) {
-                    const parentService = db.services.find(s => s.id === parentId);
-                    if (parentService && !parentService.children.includes(software.id)) {
-                        parentService.children.push(software.id);
-                    }
-                }
             });
             writeDB(db);
             fs.unlinkSync(req.file.path);

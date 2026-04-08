@@ -1,62 +1,67 @@
-import asyncio
-from playwright.async_api import async_playwright
+from playwright.sync_api import sync_playwright
 
-async def find_large_elements():
-    async with async_playwright() as p:
-        browser = await p.chromium.launch()
-        page = await browser.new_page()
-        try:
-            await page.goto("http://localhost:3000/admin/softwares")
-            await page.wait_for_timeout(3000)
+def run(playwright):
+    browser = playwright.chromium.launch(headless=True)
+    page = browser.new_page()
+    page.goto("http://localhost:3000/admin/softwares")
+    page.wait_for_timeout(3000)
 
-            large_elements = await page.evaluate("""() => {
-                const results = [];
-                const all = document.querySelectorAll('*');
-                for (const el of all) {
-                    const rect = el.getBoundingClientRect();
-                    if (rect.width > window.innerWidth * 0.5 && rect.height > window.innerHeight * 0.5) {
-                        results.push({
-                            tagName: el.tagName,
-                            id: el.id,
-                            className: el.className,
-                            width: rect.width,
-                            height: rect.height,
-                            type: el.type,
-                            outerHTML: el.outerHTML.substring(0, 200)
-                        });
-                    }
-                }
-                return results;
-            }""")
-            print("Large elements:")
-            for el in large_elements:
-                print(el)
+    # List all elements with their dimensions and see if any cover more than 50% of the screen
+    large_elements = page.evaluate("""() => {
+        const results = [];
+        const threshold = (window.innerWidth * window.innerHeight) * 0.5;
+        const all = document.getElementsByTagName('*');
+        for (let el of all) {
+            const rect = el.getBoundingClientRect();
+            const area = rect.width * rect.height;
+            if (area > threshold) {
+                results.push({
+                    tagName: el.tagName,
+                    id: el.id,
+                    className: el.className,
+                    width: rect.width,
+                    height: rect.height,
+                    area: area,
+                    parents: (() => {
+                        let p = el;
+                        let path = [];
+                        while(p) {
+                            path.push(p.tagName + (p.id ? '#' + p.id : ''));
+                            p = p.parentElement;
+                        }
+                        return path.join(' > ');
+                    })()
+                });
+            }
+        }
+        return results;
+    }""")
 
-            # Specifically check for any label that is large
-            large_labels = await page.evaluate("""() => {
-                const results = [];
-                const labels = document.querySelectorAll('label');
-                for (const l of labels) {
-                    const rect = l.getBoundingClientRect();
-                    if (rect.width > 100 || rect.height > 100) {
-                        results.push({
-                            text: l.innerText,
-                            width: rect.width,
-                            height: rect.height,
-                            html: l.outerHTML.substring(0, 200)
-                        });
-                    }
-                }
-                return results;
-            }""")
-            print("\nLarge labels:")
-            for l in large_labels:
-                print(l)
+    for el in large_elements:
+        print(f"Large element: {el['tagName']}#{el['id']} ({el['className']}) - {el['width']}x{el['height']} - Area: {el['area']}")
+        print(f"  Path: {el['parents']}")
 
-        except Exception as e:
-            print(f"Error: {e}")
-        finally:
-            await browser.close()
+    # Specifically check for any label or input that is large
+    problematic = page.evaluate("""() => {
+        const results = [];
+        const all = document.querySelectorAll('label, input');
+        for (let el of all) {
+            const rect = el.getBoundingClientRect();
+            if (rect.width > 100 || rect.height > 100) {
+                results.push({
+                    tagName: el.tagName,
+                    id: el.id,
+                    className: el.className,
+                    width: rect.width,
+                    height: rect.height
+                });
+            }
+        }
+        return results;
+    }""")
+    print(f"Problematic labels/inputs: {problematic}")
 
-if __name__ == "__main__":
-    asyncio.run(find_large_elements())
+    browser.close()
+
+with sync_playwright() as playwright:
+    run(playwright)
