@@ -439,6 +439,14 @@ app.put('/api/settings', (req, res) => {
     res.json(settings);
 });
 
-app.get('/api/data', (req, res) => res.json(readDB()));
+app.get('/api/data', (req, res) => {
+    const db = readDB();
+    const settings = getSettings();
+    res.json({
+        softwares: db.softwares || [],
+        services: db.services || [],
+        settings
+    });
+});
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
