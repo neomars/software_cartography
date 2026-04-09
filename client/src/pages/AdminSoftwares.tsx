@@ -169,24 +169,6 @@ const AdminSoftwares: React.FC = () => {
                 </div>
                 <div className="flex space-x-4">
                     <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="flex items-center px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                    >
-                        <Upload className="mr-2 w-4 h-4" /> {t('common.import')}
-                    </button>
-                    <input
-                        type="file"
-                        ref={fileInputRef}
-                        className="hidden"
-                        accept=".csv"
-                        onChange={async (e) => {
-                            if (e.target.files && e.target.files[0]) {
-                                await importCSV(e.target.files[0]);
-                                loadData();
-                            }
-                        }}
-                    />
-                    <button
                         onClick={() => { setCurrentSoftware({ parent_ids: [], children: [] }); setIsModalOpen(true); }}
                         className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                     >
@@ -274,7 +256,11 @@ const AdminSoftwares: React.FC = () => {
                                 <tr key={sw.id}>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center space-x-3">
-                                            <div className="relative w-10 h-10 border rounded overflow-hidden flex-shrink-0">
+                                            <div
+                                                className="relative w-10 h-10 border rounded overflow-hidden flex-shrink-0 cursor-pointer hover:border-blue-400 transition-colors"
+                                                onClick={() => document.getElementById(`logo-upload-${sw.id}`)?.click()}
+                                                title={t('common.logo')}
+                                            >
                                                 {sw.logo ? (
                                                     <img src={`http://localhost:5000${sw.logo}`} alt="" className="w-full h-full object-cover" />
                                                 ) : (
@@ -283,7 +269,7 @@ const AdminSoftwares: React.FC = () => {
                                                 <input
                                                     type="file"
                                                     id={`logo-upload-${sw.id}`}
-                                                    className="hidden"
+                                                    style={{ display: 'none' }}
                                                     onChange={async (e) => {
                                                         if (e.target.files && e.target.files[0]) {
                                                             await uploadLogo('software', sw.id, e.target.files[0]);
@@ -291,12 +277,6 @@ const AdminSoftwares: React.FC = () => {
                                                         }
                                                     }}
                                                 />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => document.getElementById(`logo-upload-${sw.id}`)?.click()}
-                                                    className="absolute inset-0 w-full h-full cursor-pointer z-10"
-                                                    aria-label="Upload logo"
-                                                ></button>
                                             </div>
                                             {sw.icon && (TablerIcons as any)[sw.icon] && React.createElement((TablerIcons as any)[sw.icon], { className: "w-6 h-6 text-gray-400" })}
                                         </div>

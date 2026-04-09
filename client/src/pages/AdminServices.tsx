@@ -203,7 +203,11 @@ const AdminServices: React.FC = () => {
                     <div key={service.id} className="bg-white p-6 rounded-lg shadow-md border-t-4" style={{ borderTopColor: service.color }}>
                         <div className="flex justify-between items-start">
                             <div className="flex items-center">
-                                <div className="relative w-12 h-12 border rounded overflow-hidden mr-3">
+                                <div
+                                    className="relative w-12 h-12 border rounded overflow-hidden mr-3 cursor-pointer hover:border-blue-400 transition-colors"
+                                    onClick={() => document.getElementById(`logo-upload-srv-${service.id}`)?.click()}
+                                    title={t('common.logo')}
+                                >
                                     {service.logo ? (
                                         <img src={`http://localhost:5000${service.logo}`} alt="" className="w-full h-full object-cover" />
                                     ) : service.icon && (TablerIcons as any)[service.icon] ? (
@@ -216,15 +220,9 @@ const AdminServices: React.FC = () => {
                                     <input
                                         type="file"
                                         id={`logo-upload-srv-${service.id}`}
-                                        className="hidden"
+                                        style={{ display: 'none' }}
                                         onChange={(e) => handleLogoUpload(service.id, e)}
                                     />
-                                    <button
-                                        type="button"
-                                        onClick={() => document.getElementById(`logo-upload-srv-${service.id}`)?.click()}
-                                        className="absolute inset-0 w-full h-full cursor-pointer z-10"
-                                        aria-label="Upload logo"
-                                    ></button>
                                 </div>
                                 <div>
                                     <h3 className="font-bold">{service.name}</h3>

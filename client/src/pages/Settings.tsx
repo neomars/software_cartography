@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { getSettings, updateSettings, getDatasets, createDataset, setActiveDataset } from '../api';
+import { getSettings, updateSettings, getDatasets, createDataset, setActiveDataset, importCSV } from '../api';
 import { useTranslation } from '../i18n';
-import { Save, Database, Plus, Check } from 'lucide-react';
+import { Save, Database, Plus, Check, Upload } from 'lucide-react';
 
 const Settings = () => {
     const { t } = useTranslation();
@@ -48,6 +48,18 @@ const Settings = () => {
             loadData();
         } catch (error) {
             alert(t('common.error'));
+        }
+    };
+
+    const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            try {
+                await importCSV(e.target.files[0]);
+                alert(t('common.success'));
+                loadData();
+            } catch (error) {
+                alert(t('common.error'));
+            }
         }
     };
 
@@ -153,6 +165,26 @@ const Settings = () => {
                                     {activeDataset === ds && <Check className="w-5 h-5 text-blue-600" />}
                                 </div>
                             ))}
+                        </div>
+
+                        <div className="pt-4 border-t mt-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                {t('common.import')} ({activeDataset})
+                            </label>
+                            <input
+                                type="file"
+                                id="csv-import"
+                                style={{ display: 'none' }}
+                                accept=".csv"
+                                onChange={handleImportCSV}
+                            />
+                            <button
+                                onClick={() => document.getElementById('csv-import')?.click()}
+                                className="w-full flex items-center justify-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-xl hover:bg-green-700 transition"
+                            >
+                                <Upload className="w-5 h-5" />
+                                <span>{t('common.import')}</span>
+                            </button>
                         </div>
                     </div>
                 </div>
