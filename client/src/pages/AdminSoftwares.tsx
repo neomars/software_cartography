@@ -290,6 +290,16 @@ const AdminSoftwares: React.FC = () => {
                                                     sw.criticality === 2 ? 'bg-orange-500' : 'bg-green-500'
                                                 }`} title={t(`common.tier${sw.criticality}`)} />
                                             )}
+                                            <input
+                                                type="file"
+                                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                                onChange={async (e) => {
+                                                    if (e.target.files && e.target.files[0]) {
+                                                        await uploadLogo('software', sw.id, e.target.files[0]);
+                                                        loadData();
+                                                    }
+                                                }}
+                                            />
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 min-w-[200px]">
