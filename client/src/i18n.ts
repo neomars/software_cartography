@@ -53,7 +53,8 @@ const translations = {
             children: "Enfants (Logiciels)",
             access: "Accès",
             none: "Aucun",
-            viewGrid: "Liste",
+            viewList: "Liste",
+            viewGrid: "Grille",
             viewGraph: "Graphe",
             viewTree: "Arborescence"
         },
@@ -126,7 +127,8 @@ const translations = {
             children: "Children (Softwares)",
             access: "Access",
             none: "None",
-            viewGrid: "List",
+            viewList: "List",
+            viewGrid: "Grid",
             viewGraph: "Graph",
             viewTree: "Hierarchy"
         },

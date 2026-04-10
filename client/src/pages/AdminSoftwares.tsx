@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { getSoftwares, getServices, deleteSoftware, uploadLogo, Software, Service, createSoftware, updateSoftware } from '../api';
-import { Trash2, Edit, Plus, X, LayoutGrid, Network, GitGraph } from 'lucide-react';
+import { Trash2, Edit, Plus, X, LayoutGrid, Network, GitGraph, List } from 'lucide-react';
 import * as TablerIcons from '@tabler/icons-react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { useTranslation } from '../i18n';
@@ -19,7 +19,7 @@ const AdminSoftwares: React.FC = () => {
     const [services, setServices] = useState<Service[]>([]);
     const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
     const [currentSoftware, setCurrentSoftware] = useState<Partial<Software> | null>(null);
-    const [viewMode, setViewMode] = useState<'grid' | 'graph' | 'tree'>('grid');
+    const [viewMode, setViewMode] = useState<'list' | 'grid' | 'graph' | 'tree'>('list');
     const [uploadingSoftwareId, setUploadingSoftwareId] = useState<string | null>(null);
 
     const fgRef = useRef<any>(null);
@@ -93,6 +93,22 @@ const AdminSoftwares: React.FC = () => {
         fileInputRef.current?.click();
     };
 
+    const handleRelationUpdate = async (swId: string, field: 'parent_ids' | 'children', ids: string[]) => {
+        const sw = softwares.find(s => s.id === swId);
+        if (sw) {
+            try {
+                const updateData: any = { ...sw, [field]: ids };
+                if (field === 'parent_ids') {
+                    updateData.parent_id = ids.length > 0 ? ids[0] : null;
+                }
+                await updateSoftware(swId, updateData);
+                loadData();
+            } catch (error) {
+                console.error("Failed to update relations", error);
+            }
+        }
+    };
+
     const parentOptions = useMemo<SelectOption[]>(() => [
         ...services.map((s: Service) => ({ id: s.id, name: s.name, group: t('nav.services') })),
         ...softwares.map((sw: Software) => ({ id: sw.id, name: sw.name, group: t('nav.softwares') }))
@@ -131,6 +147,13 @@ const AdminSoftwares: React.FC = () => {
                 <div className="flex items-center space-x-6">
                     <h2 className="text-2xl font-bold">{t('softwares.title')}</h2>
                     <div className="flex bg-gray-100 p-1 rounded-lg">
+                        <button
+                            onClick={() => setViewMode('list')}
+                            className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            <List className="w-4 h-4 mr-2" />
+                            {t('softwares.viewList')}
+                        </button>
                         <button
                             onClick={() => setViewMode('grid')}
                             className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
@@ -206,7 +229,7 @@ const AdminSoftwares: React.FC = () => {
                         }}
                     />
                 </div>
-            ) : (
+            ) : viewMode === 'grid' ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {softwares.map(sw => {
                         const pIds = sw.parent_ids || (sw.parent_id ? [sw.parent_id] : []);
@@ -289,6 +312,98 @@ const AdminSoftwares: React.FC = () => {
                             </div>
                         );
                     })}
+                </div>
+            ) : (
+                <div className="bg-white shadow rounded-lg overflow-hidden border border-gray-200">
+                    <table className="w-full text-left border-collapse">
+                        <thead className="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-24 text-center">{t('common.logo')} / {t('common.icon')}</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t('common.name')}</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-1/4">{t('softwares.parent')}</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-1/4">{t('softwares.children')}</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t('common.description')}</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">{t('common.actions')}</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                            {softwares.map((sw: Software) => {
+                                const pIds = sw.parent_ids || (sw.parent_id ? [sw.parent_id] : []);
+                                return (
+                                    <tr key={sw.id} className="hover:bg-gray-50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center justify-center space-x-3">
+                                                <div
+                                                    className="relative w-10 h-10 border border-gray-200 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer hover:border-blue-400 transition-all bg-white shadow-sm"
+                                                    onClick={() => triggerUpload(sw.id)}
+                                                    title={t('common.logo')}
+                                                >
+                                                    {sw.logo ? (
+                                                        <img src={`http://localhost:5000${sw.logo}`} alt="" className="w-full h-full object-cover" />
+                                                    ) : sw.icon && (TablerIcons as any)[sw.icon] ? (
+                                                        <div className="w-full h-full bg-blue-50 flex items-center justify-center text-blue-600">
+                                                            {React.createElement((TablerIcons as any)[sw.icon], { className: "w-5 h-5" })}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="w-full h-full bg-gray-50 flex items-center justify-center text-[8px] text-center px-1 text-gray-400 uppercase font-bold">{t('common.noImg')}</div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center">
+                                                <span className="font-semibold text-gray-900">{sw.name}</span>
+                                                {sw.criticality && (
+                                                    <span className={`ml-2 w-2.5 h-2.5 rounded-full ${
+                                                        sw.criticality === 1 ? 'bg-red-500' :
+                                                        sw.criticality === 2 ? 'bg-orange-500' : 'bg-green-500'
+                                                    }`} title={t(`common.tier${sw.criticality}`)} />
+                                                )}
+                                            </div>
+                                            {sw.acces && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold uppercase mt-1 inline-block">{t('softwares.access')}</span>}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <MultiSelect
+                                                options={parentOptions.filter((o: SelectOption) => o.id !== sw.id)}
+                                                selected={pIds}
+                                                onChange={(ids) => handleRelationUpdate(sw.id, 'parent_ids', ids)}
+                                                placeholder={t('softwares.none')}
+                                            />
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <MultiSelect
+                                                options={softwares.filter((s: Software) => s.id !== sw.id).map((s: Software) => ({ id: s.id, name: s.name }))}
+                                                selected={sw.children || []}
+                                                onChange={(ids) => handleRelationUpdate(sw.id, 'children', ids)}
+                                                placeholder={t('softwares.none')}
+                                            />
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <p className="text-sm text-gray-500 line-clamp-1 max-w-xs" title={sw.description}>{sw.description}</p>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex justify-end space-x-2">
+                                                <button
+                                                    onClick={() => { setCurrentSoftware(sw); setIsModalOpen(true); }}
+                                                    className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors"
+                                                    title={t('common.edit')}
+                                                >
+                                                    <Edit className="w-5 h-5" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(sw.id)}
+                                                    className="text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                                                    title={t('common.delete')}
+                                                >
+                                                    <Trash2 className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
                 </div>
             )}
 
