@@ -259,6 +259,16 @@ const AdminSoftwares: React.FC = () => {
                                             ) : (
                                                 <div className="w-full h-full bg-gray-100 flex items-center justify-center text-[10px] text-center px-1">{t('common.logo')}</div>
                                             )}
+                                            <input
+                                                type="file"
+                                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                                onChange={async (e) => {
+                                                    if (e.target.files && e.target.files[0]) {
+                                                        await uploadLogo('software', sw.id, e.target.files[0]);
+                                                        loadData();
+                                                    }
+                                                }}
+                                            />
                                         </div>
                                         <div className="min-w-0">
                                             <h3 className="font-bold truncate" title={sw.name}>{sw.name}</h3>
