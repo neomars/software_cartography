@@ -57,23 +57,36 @@ const Visualization = () => {
                 const childCount = s.children.length;
                 const radius = 40 + Math.min(childCount, 100) * 2;
                 nodes.push({ id: s.id, name: s.name, color: s.color, isService: true, logo: s.logo, icon: s.icon, val: 60, radius });
-                s.children.forEach(childId => {
-                    const isChildService = services.some(srv => srv.id === childId);
-                    links.push({
-                        source: s.id,
-                        target: childId,
-                        distance: isChildService ? radius + 50 : radius * 0.25,
-                        isSoftwareLink: false,
-                        isServiceLink: isChildService
-                    });
-                });
             });
             softwares.forEach(sw => {
                 const color = getServiceColor(sw.id);
                 nodes.push({ id: sw.id, name: sw.name, isService: false, logo: sw.logo, icon: sw.icon, val: 8, color });
+            });
+
+            const nodeIds = new Set(nodes.map(n => n.id));
+
+            services.forEach(s => {
+                const radius = nodes.find(n => n.id === s.id)?.radius || 40;
+                s.children.forEach(childId => {
+                    if (nodeIds.has(s.id) && nodeIds.has(childId)) {
+                        const isChildService = services.some(srv => srv.id === childId);
+                        links.push({
+                            source: s.id,
+                            target: childId,
+                            distance: isChildService ? radius + 50 : radius * 0.25,
+                            isSoftwareLink: false,
+                            isServiceLink: isChildService
+                        });
+                    }
+                });
+            });
+
+            softwares.forEach(sw => {
                 if (sw.children) {
                     sw.children.forEach(childId => {
-                        links.push({ source: sw.id, target: childId, distance: 10, isSoftwareLink: true });
+                        if (nodeIds.has(sw.id) && nodeIds.has(childId)) {
+                            links.push({ source: sw.id, target: childId, distance: 10, isSoftwareLink: true });
+                        }
                     });
                 }
             });

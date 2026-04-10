@@ -119,14 +119,21 @@ const AdminSoftwares: React.FC = () => {
             ...services.map(s => ({ id: s.id, name: s.name, color: s.color, isService: true })),
             ...softwares.map(sw => ({ id: sw.id, name: sw.name, color: services.find(s => s.id === (sw.parent_ids?.[0] || sw.parent_id))?.color || '#94a3b8', isService: false }))
         ];
+
+        const nodeIds = new Set(nodes.map(n => n.id));
         const links: any[] = [];
+
         softwares.forEach(sw => {
             const pIds = sw.parent_ids || (sw.parent_id ? [sw.parent_id] : []);
             pIds.forEach(pid => {
-                links.push({ source: pid, target: sw.id });
+                if (nodeIds.has(pid) && nodeIds.has(sw.id)) {
+                    links.push({ source: pid, target: sw.id });
+                }
             });
             (sw.children || []).forEach(cid => {
-                links.push({ source: sw.id, target: cid });
+                if (nodeIds.has(sw.id) && nodeIds.has(cid)) {
+                    links.push({ source: sw.id, target: cid });
+                }
             });
         });
         return { nodes, links };

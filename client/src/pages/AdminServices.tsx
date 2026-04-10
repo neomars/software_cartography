@@ -101,11 +101,14 @@ const AdminServices: React.FC = () => {
             color: s.color,
             val: 10 + (s.children?.length || 0)
         }));
+
+        const nodeIds = new Set(nodes.map(n => n.id));
         const links: any[] = [];
+
         services.forEach(s => {
             const pIds = s.parent_ids || (s.parent_id ? [s.parent_id] : []);
             pIds.forEach(pid => {
-                if (services.some(srv => srv.id === pid)) {
+                if (nodeIds.has(pid) && nodeIds.has(s.id)) {
                     links.push({ source: pid, target: s.id });
                 }
             });
