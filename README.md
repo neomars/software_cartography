@@ -55,6 +55,26 @@ npm start
 - **Médias** : Les logos téléchargés sont sauvegardés dans `server/uploads/`.
 - **Captures de Vérification** : Disponibles dans `client/media/`.
 
+## Tutoriel d'Utilisation
+
+### 1. Visualisation Interactive (3D & 2D)
+Utilisez la vue 3D pour explorer l'écosystème. Cliquez sur un nœud pour illuminer son lignage (ancêtres et descendants). Les liens afficheront des particules animées indiquant la direction de la dépendance.
+![Visualisation 3D](client/media/tutorial_viz_3d.png)
+
+Basculez sur la vue 2D pour une analyse plus plate et schématique.
+![Visualisation 2D](client/media/tutorial_viz_2d.png)
+
+### 2. Simulation de Panne
+En mode simulation, cliquez sur un logiciel pour voir l'impact d'une panne. Le nœud sélectionné devient rouge, et tous les éléments dépendants virent à l'orange. Vous pouvez exporter le rapport d'impact en CSV.
+
+### 3. Administration des Logiciels et Services
+Gérez vos données via des tableaux interactifs. Vous pouvez éditer les icônes, la criticité (Tier 1 à 3) et les relations multi-parents.
+![Administration](client/media/tutorial_admin_softwares.png)
+
+### 4. Gestion des Jeux de Données
+Dans les paramètres, vous pouvez créer de nouveaux environnements, importer des fichiers CSV ou changer le jeu de données actif.
+![Paramètres](client/media/tutorial_settings.png)
+
 ---
 
 <a name="english"></a>
@@ -109,3 +129,23 @@ npm start
 - **Datasets**: `server/data/datasets/*.json`
 - **Media**: Uploaded logos are saved in `server/uploads/`.
 - **Verification Captures**: Available in `client/media/`.
+
+## User Tutorial
+
+### 1. Interactive Visualization (3D & 2D)
+Use the 3D view to explore the ecosystem. Click on a node to highlight its lineage (ancestors and descendants). Links will show animated particles indicating the dependency direction.
+![3D Visualization](client/media/tutorial_viz_3d.png)
+
+Switch to the 2D view for a flatter, schematic analysis.
+![2D Visualization](client/media/tutorial_viz_2d.png)
+
+### 2. Failure Simulation
+In simulation mode, click on a software to see the impact of a failure. The selected node turns red, and all dependent elements turn orange. You can export the impact report to CSV.
+
+### 3. Software and Service Administration
+Manage your data through interactive tables. You can edit icons, criticality (Tier 1 to 3), and multi-parent relationships.
+![Administration](client/media/tutorial_admin_softwares.png)
+
+### 4. Dataset Management
+In settings, you can create new environments, import CSV files, or switch the active dataset.
+![Settings](client/media/tutorial_settings.png)
