@@ -1,4 +1,4 @@
-# Viz3D - Cartographie Logicielle 2D & 3D / 2D & 3D Software Cartography
+# Cartographie Logicielle 2D & 3D / 2D & 3D Software Cartography
 
 [Français](#français) | [English](#english)
 
