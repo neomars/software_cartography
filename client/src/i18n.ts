@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 const translations = {
     fr: {
         nav: {
-            viz: "Visualisation",
+            viz: "Visualisation 3D",
+            viz2d: "Visualisation 2D",
             softwares: "Logiciels",
             services: "Services",
             settings: "Paramètres",
@@ -23,36 +24,61 @@ const translations = {
             noImg: "Pas d'image",
             confirmDelete: "Supprimer ?",
             success: "Succès",
-            error: "Erreur"
-        },
-        softwares: {
-            title: "Gestion des Logiciels",
-            parent: "Parent (Service ou Logiciel)",
-            children: "Enfants (Logiciels)",
-            access: "Accès",
-            none: "Aucun"
+            error: "Erreur",
+            dataset: "Données",
+            criticality: "Criticité",
+            tier1: "Tier 1",
+            tier2: "Tier 2",
+            tier3: "Tier 3",
+            none: "Aucune",
+            icon: "Icône",
+            selectIcon: "Choisir un icône",
+            chooseIcon: "Librairie d'icônes",
+            search: "Rechercher...",
+            noResults: "Aucun résultat"
         },
         services: {
             title: "Gestion des Services",
             create: "Créer",
             color: "Couleur",
             components: "Composants",
-            numComponents: "{count} composants"
+            numComponents: "{count} composants",
+            viewGrid: "Grille",
+            viewGraph: "Graphe",
+            viewTree: "Arborescence"
+        },
+        softwares: {
+            title: "Gestion des Logiciels",
+            parent: "Parent (Service ou Logiciel)",
+            children: "Enfants (Logiciels)",
+            access: "Accès",
+            none: "Aucun",
+            viewList: "Liste",
+            viewGrid: "Grille",
+            viewGraph: "Graphe",
+            viewTree: "Arborescence"
         },
         viz: {
             refresh: "Rafraîchir",
+            csv: "CSV",
             png: "PNG",
             names: "Noms",
-            logos: "Logos"
+            logos: "Logos",
+            startSim: "Simuler Panne",
+            stopSim: "Arrêter Simulation",
+            impacted: "Éléments Impactés",
+            reset: "Réinitialiser"
         },
         settings: {
             title: "Paramètres de l'application",
-            appName: "Nom de l'application"
+            appName: "Nom de l'application",
+            linkOpacity: "Opacité des liens (%)"
         }
     },
     en: {
         nav: {
-            viz: "Visualization",
+            viz: "3D Visualization",
+            viz2d: "2D Visualization",
             softwares: "Softwares",
             services: "Services",
             settings: "Settings",
@@ -72,31 +98,55 @@ const translations = {
             noImg: "No image",
             confirmDelete: "Delete?",
             success: "Success",
-            error: "Error"
-        },
-        softwares: {
-            title: "Software Management",
-            parent: "Parent (Service or Software)",
-            children: "Children (Softwares)",
-            access: "Access",
-            none: "None"
+            error: "Error",
+            dataset: "Dataset",
+            criticality: "Criticality",
+            tier1: "Tier 1",
+            tier2: "Tier 2",
+            tier3: "Tier 3",
+            none: "None",
+            icon: "Icon",
+            selectIcon: "Select an icon",
+            chooseIcon: "Icon Library",
+            search: "Search...",
+            noResults: "No results"
         },
         services: {
             title: "Service Management",
             create: "Create",
             color: "Color",
             components: "Components",
-            numComponents: "{count} components"
+            numComponents: "{count} components",
+            viewGrid: "Grid",
+            viewGraph: "Graph",
+            viewTree: "Hierarchy"
+        },
+        softwares: {
+            title: "Software Management",
+            parent: "Parent (Service or Software)",
+            children: "Children (Softwares)",
+            access: "Access",
+            none: "None",
+            viewList: "List",
+            viewGrid: "Grid",
+            viewGraph: "Graph",
+            viewTree: "Hierarchy"
         },
         viz: {
             refresh: "Refresh",
+            csv: "CSV",
             png: "PNG",
             names: "Names",
-            logos: "Logos"
+            logos: "Logos",
+            startSim: "Simulate Failure",
+            stopSim: "Stop Simulation",
+            impacted: "Impacted Elements",
+            reset: "Reset"
         },
         settings: {
             title: "Application Settings",
-            appName: "Application Name"
+            appName: "Application Name",
+            linkOpacity: "Link Opacity (%)"
         }
     }
 };
