@@ -23,8 +23,8 @@ const Structure = () => {
 
     const buildTree = useCallback((services: Service[], softwares: Software[]) => {
         const allNodes: TreeNode[] = [
-            ...services.map(s => ({ id: s.id, name: s.name, isService: true, color: s.color, children: [], parent_id: s.parent_id })),
-            ...softwares.map(sw => ({ id: sw.id, name: sw.name, isService: false, color: null, children: [], parent_id: sw.parent_id }))
+            ...services.map(s => ({ id: s.id, name: s.name, isService: true, color: s.color, children: [], parent_id: s.parent_ids?.[0] || s.parent_id })),
+            ...softwares.map(sw => ({ id: sw.id, name: sw.name, isService: false, color: null, children: [], parent_id: sw.parent_ids?.[0] || sw.parent_id }))
         ];
 
         const serviceMap = new Map(services.map(s => [s.id, s]));
@@ -135,9 +135,9 @@ const Structure = () => {
 
         try {
             if (draggedNode?.isService) {
-                await updateService(id, { parent_id: targetId });
+                await updateService(id, { parent_id: targetId, parent_ids: targetId ? [targetId] : [] });
             } else {
-                await updateSoftware(id, { parent_id: targetId });
+                await updateSoftware(id, { parent_id: targetId, parent_ids: targetId ? [targetId] : [] });
             }
             loadData();
         } catch (error) { console.error(error); }
