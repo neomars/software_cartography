@@ -321,6 +321,7 @@ const AdminServices: React.FC = () => {
                                     selected={currentService?.parent_ids || (currentService?.parent_id ? [currentService.parent_id] : [])}
                                     onChange={(ids) => setCurrentService(prev => ({ ...prev!, parent_ids: ids, parent_id: ids.length > 0 ? ids[0] : null }))}
                                     placeholder={t('softwares.none')}
+                                    disabled={isLocked}
                                 />
                             </div>
                             <div>
@@ -408,6 +409,7 @@ const AdminServices: React.FC = () => {
                                         selected={currentService?.children || []}
                                         onChange={(ids) => setCurrentService(prev => ({ ...prev!, children: ids }))}
                                         placeholder={t('softwares.none')}
+                                        disabled={isLocked}
                                     />
                                 </div>
                             </div>
