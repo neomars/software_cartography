@@ -13,6 +13,8 @@ interface SelectOption {
     group?: string;
 }
 
+import { getAllData } from '../api';
+
 const AdminSoftwares: React.FC = () => {
     const { t } = useTranslation();
     const [softwares, setSoftwares] = useState<Software[]>([]);
@@ -21,15 +23,17 @@ const AdminSoftwares: React.FC = () => {
     const [currentSoftware, setCurrentSoftware] = useState<Partial<Software> | null>(null);
     const [viewMode, setViewMode] = useState<'list' | 'grid' | 'graph' | 'tree'>('list');
     const [uploadingSoftwareId, setUploadingSoftwareId] = useState<string | null>(null);
+    const [isLocked, setIsLocked] = useState(false);
 
     const fgRef = useRef<any>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const loadData = useCallback(async () => {
         try {
-            const [resSw, resSrv] = await Promise.all([getSoftwares(), getServices()]);
-            setSoftwares(resSw.data);
-            setServices(resSrv.data);
+            const res = await getAllData();
+            setSoftwares(res.data.softwares);
+            setServices(res.data.services);
+            setIsLocked(res.data.locked && !sessionStorage.getItem('dataset_pin'));
         } catch (error) {
             console.error("Failed to load data", error);
         }
@@ -186,7 +190,8 @@ const AdminSoftwares: React.FC = () => {
                 </div>
                 <button
                     onClick={() => { setCurrentSoftware({ parent_ids: [], children: [] }); setIsModalOpen(true); }}
-                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 shadow-lg transition-transform active:scale-95"
+                    disabled={isLocked}
+                    className={`flex items-center px-4 py-2 bg-blue-600 text-white rounded shadow-lg transition-transform active:scale-95 ${isLocked ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'}`}
                 >
                     <Plus className="mr-2 w-4 h-4" /> {t('common.add')}
                 </button>
@@ -266,16 +271,6 @@ const AdminSoftwares: React.FC = () => {
                                             ) : (
                                                 <div className="w-full h-full bg-gray-100 flex items-center justify-center text-[10px] text-center px-1">{t('common.logo')}</div>
                                             )}
-                                            <input
-                                                type="file"
-                                                className="absolute inset-0 opacity-0 cursor-pointer"
-                                                onChange={async (e) => {
-                                                    if (e.target.files && e.target.files[0]) {
-                                                        await uploadLogo('software', sw.id, e.target.files[0]);
-                                                        loadData();
-                                                    }
-                                                }}
-                                            />
                                         </div>
                                         <div className="min-w-0">
                                             <h3 className="font-bold truncate" title={sw.name}>{sw.name}</h3>
@@ -296,20 +291,22 @@ const AdminSoftwares: React.FC = () => {
                                             )}
                                         </div>
                                     </div>
-                                    <div className="flex space-x-2 ml-2">
-                                        <button
-                                            onClick={() => { setCurrentSoftware(sw); setIsModalOpen(true); }}
-                                            className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-full transition-colors"
-                                        >
-                                            <Edit className="w-5 h-5" />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(sw.id)}
-                                            className="text-red-600 hover:bg-red-50 p-1.5 rounded-full transition-colors"
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
-                                    </div>
+                                    {!isLocked && (
+                                        <div className="flex space-x-2 ml-2">
+                                            <button
+                                                onClick={() => { setCurrentSoftware(sw); setIsModalOpen(true); }}
+                                                className="text-blue-600 hover:bg-blue-50 p-1.5 rounded-full transition-colors"
+                                            >
+                                                <Edit className="w-5 h-5" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(sw.id)}
+                                                className="text-red-600 hover:bg-red-50 p-1.5 rounded-full transition-colors"
+                                            >
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                                 {sw.description && (
                                     <p className="mt-4 text-sm text-gray-500 line-clamp-2" title={sw.description}>
@@ -375,6 +372,7 @@ const AdminSoftwares: React.FC = () => {
                                                 selected={pIds}
                                                 onChange={(ids) => handleRelationUpdate(sw.id, 'parent_ids', ids)}
                                                 placeholder={t('softwares.none')}
+                                                disabled={isLocked}
                                             />
                                         </td>
                                         <td className="px-6 py-4">
@@ -383,28 +381,31 @@ const AdminSoftwares: React.FC = () => {
                                                 selected={sw.children || []}
                                                 onChange={(ids) => handleRelationUpdate(sw.id, 'children', ids)}
                                                 placeholder={t('softwares.none')}
+                                                disabled={isLocked}
                                             />
                                         </td>
                                         <td className="px-6 py-4">
                                             <p className="text-sm text-gray-500 line-clamp-1 max-w-xs" title={sw.description}>{sw.description}</p>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <div className="flex justify-end space-x-2">
-                                                <button
-                                                    onClick={() => { setCurrentSoftware(sw); setIsModalOpen(true); }}
-                                                    className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors"
-                                                    title={t('common.edit')}
-                                                >
-                                                    <Edit className="w-5 h-5" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(sw.id)}
-                                                    className="text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"
-                                                    title={t('common.delete')}
-                                                >
-                                                    <Trash2 className="w-5 h-5" />
-                                                </button>
-                                            </div>
+                                            {!isLocked && (
+                                                <div className="flex justify-end space-x-2">
+                                                    <button
+                                                        onClick={() => { setCurrentSoftware(sw); setIsModalOpen(true); }}
+                                                        className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors"
+                                                        title={t('common.edit')}
+                                                    >
+                                                        <Edit className="w-5 h-5" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(sw.id)}
+                                                        className="text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                                                        title={t('common.delete')}
+                                                    >
+                                                        <Trash2 className="w-5 h-5" />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </td>
                                     </tr>
                                 );
