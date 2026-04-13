@@ -87,6 +87,7 @@ const Settings = () => {
     const handleSwitchDataset = async (name: string) => {
         try {
             await setActiveDataset(name);
+            sessionStorage.removeItem('dataset_pin');
             loadData();
             window.location.reload();
         } catch (error) {

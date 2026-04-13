@@ -12,9 +12,10 @@ interface MultiSelectProps {
     selected: string[];
     onChange: (selected: string[]) => void;
     placeholder?: string;
+    disabled?: boolean;
 }
 
-const MultiSelect: React.FC<MultiSelectProps> = ({ options, selected, onChange, placeholder = "Select..." }) => {
+const MultiSelect: React.FC<MultiSelectProps> = ({ options, selected, onChange, placeholder = "Select...", disabled = false }) => {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -29,6 +30,7 @@ const MultiSelect: React.FC<MultiSelectProps> = ({ options, selected, onChange, 
     }, []);
 
     const toggleOption = (id: string) => {
+        if (disabled) return;
         const newSelected = selected.includes(id)
             ? selected.filter(s => s !== id)
             : [...selected, id];
@@ -48,22 +50,30 @@ const MultiSelect: React.FC<MultiSelectProps> = ({ options, selected, onChange, 
     return (
         <div className="relative w-full" ref={containerRef}>
             <div
-                className="min-h-[42px] p-2 border rounded bg-white cursor-pointer flex flex-wrap gap-1 items-center pr-8"
-                onClick={() => setIsOpen(!isOpen)}
+                className={`min-h-[42px] p-2 border rounded flex flex-wrap gap-1 items-center pr-8 transition-colors ${
+                    disabled
+                        ? 'bg-gray-50 cursor-not-allowed border-gray-200'
+                        : 'bg-white cursor-pointer border-gray-300 hover:border-blue-400'
+                }`}
+                onClick={() => !disabled && setIsOpen(!isOpen)}
             >
                 {selectedOptions.length === 0 ? (
                     <span className="text-gray-400 text-sm">{placeholder}</span>
                 ) : (
                     selectedOptions.map(opt => (
-                        <span key={opt.id} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded flex items-center">
+                        <span key={opt.id} className={`text-xs px-2 py-1 rounded flex items-center ${
+                            disabled ? 'bg-gray-200 text-gray-600' : 'bg-blue-100 text-blue-800'
+                        }`}>
                             {opt.name}
-                            <X
-                                className="w-3 h-3 ml-1 cursor-pointer hover:text-blue-600"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleOption(opt.id);
-                                }}
-                            />
+                            {!disabled && (
+                                <X
+                                    className="w-3 h-3 ml-1 cursor-pointer hover:text-blue-600"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleOption(opt.id);
+                                    }}
+                                />
+                            )}
                         </span>
                     ))
                 )}
