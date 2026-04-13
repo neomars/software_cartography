@@ -36,6 +36,15 @@ export interface Settings {
     activeDataset?: string;
 }
 
+// Interceptor to add PIN to requests
+axios.interceptors.request.use(config => {
+    const pin = sessionStorage.getItem('dataset_pin');
+    if (pin) {
+        config.headers['x-pin'] = pin;
+    }
+    return config;
+});
+
 export const getSoftwares = () => axios.get<Software[]>(`${API_BASE_URL}/softwares`);
 export const createSoftware = (data: Partial<Software>) => axios.post<Software>(`${API_BASE_URL}/softwares`, data);
 export const updateSoftware = (id: string, data: Partial<Software>) => axios.put<Software>(`${API_BASE_URL}/softwares/${id}`, data);
@@ -61,8 +70,8 @@ export const uploadLogo = (type: 'software' | 'service', id: string, file: File)
 export const getSettings = () => axios.get<Settings>(`${API_BASE_URL}/settings`);
 export const updateSettings = (data: Partial<Settings>) => axios.put<Settings>(`${API_BASE_URL}/settings`, data);
 
-export const getDatasets = () => axios.get<{ datasets: string[], active: string }>(`${API_BASE_URL}/datasets`);
-export const createDataset = (name: string) => axios.post(`${API_BASE_URL}/datasets`, { name });
+export const getDatasets = () => axios.get<{ datasets: {name: string, hasPin: boolean}[], active: string }>(`${API_BASE_URL}/datasets`);
+export const createDataset = (name: string, pin?: string) => axios.post(`${API_BASE_URL}/datasets`, { name, pin });
 export const setActiveDataset = (name: string) => axios.post(`${API_BASE_URL}/datasets/active`, { name });
 
-export const getAllData = () => axios.get<{ softwares: Software[], services: Service[], settings: Settings }>(`${API_BASE_URL}/data`);
+export const getAllData = () => axios.get<{ softwares: Software[], services: Service[], settings: Settings, locked: boolean }>(`${API_BASE_URL}/data`);

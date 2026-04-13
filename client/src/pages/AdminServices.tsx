@@ -14,6 +14,8 @@ interface Option {
     group?: string;
 }
 
+import { getAllData } from '../api';
+
 const AdminServices: React.FC = () => {
     const { t } = useTranslation();
     const [services, setServices] = useState<Service[]>([]);
@@ -21,13 +23,15 @@ const AdminServices: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentService, setCurrentService] = useState<Partial<Service> | null>(null);
     const [viewMode, setViewMode] = useState<'grid' | 'graph' | 'tree'>('grid');
+    const [isLocked, setIsLocked] = useState(false);
     const fgRef = useRef<any>(null);
 
     const loadData = useCallback(async () => {
         try {
-            const [resServices, resSoftwares] = await Promise.all([getServices(), getSoftwares()]);
-            setServices(resServices.data);
-            setSoftwares(resSoftwares.data);
+            const res = await getAllData();
+            setServices(res.data.services);
+            setSoftwares(res.data.softwares);
+            setIsLocked(res.data.locked && !sessionStorage.getItem('dataset_pin'));
         } catch (error) {
             console.error("Failed to load data", error);
         }
@@ -147,7 +151,8 @@ const AdminServices: React.FC = () => {
                 </div>
                 <button
                     onClick={() => { setCurrentService({ name: '', color: '#3b82f6', children: [], parent_ids: [] }); setIsModalOpen(true); }}
-                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    disabled={isLocked}
+                    className={`flex items-center px-4 py-2 bg-blue-600 text-white rounded ${isLocked ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'}`}
                 >
                     <Plus className="mr-2 w-4 h-4" /> {t('services.create')}
                 </button>
@@ -244,14 +249,16 @@ const AdminServices: React.FC = () => {
                                     )}
                                 </div>
                             </div>
-                            <div className="flex space-x-2">
-                                <button onClick={() => { setCurrentService(service); setIsModalOpen(true); }} className="text-blue-600">
-                                    <Edit className="w-5 h-5" />
-                                </button>
-                                <button onClick={() => handleDelete(service.id)} className="text-red-600">
-                                    <Trash2 className="w-5 h-5" />
-                                </button>
-                            </div>
+                            {!isLocked && (
+                                <div className="flex space-x-2">
+                                    <button onClick={() => { setCurrentService(service); setIsModalOpen(true); }} className="text-blue-600">
+                                        <Edit className="w-5 h-5" />
+                                    </button>
+                                    <button onClick={() => handleDelete(service.id)} className="text-red-600">
+                                        <Trash2 className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                     );

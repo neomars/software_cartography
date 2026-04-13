@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { getSettings, updateSettings, getDatasets, createDataset, setActiveDataset, importCSV } from '../api';
 import { useTranslation } from '../i18n';
-import { Save, Database, Plus, Check, Upload } from 'lucide-react';
+import { Save, Database, Plus, Check, Upload, Lock, Unlock } from 'lucide-react';
 
 const Settings = () => {
     const { t } = useTranslation();
     const [appName, setAppName] = useState('');
     const [linkOpacity, setLinkOpacity] = useState(60);
-    const [datasets, setDatasets] = useState<string[]>([]);
+    const [datasets, setDatasets] = useState<{name: string, hasPin: boolean}[]>([]);
     const [activeDataset, setActiveDatasetName] = useState('');
     const [newDatasetName, setNewDatasetName] = useState('');
+    const [newDatasetPin, setNewDatasetPin] = useState('');
+    const [unlockPin, setUnlockPin] = useState('');
+    const [isLocked, setIsLocked] = useState(false);
     const [loading, setLoading] = useState(true);
     const [message, setMessage] = useState('');
 
@@ -20,6 +23,11 @@ const Settings = () => {
             setLinkOpacity(settingsRes.data.linkOpacity !== undefined ? settingsRes.data.linkOpacity : 60);
             setDatasets(datasetsRes.data.datasets);
             setActiveDatasetName(datasetsRes.data.active);
+
+            const activeDs = datasetsRes.data.datasets.find(d => d.name === datasetsRes.data.active);
+            const currentPin = sessionStorage.getItem('dataset_pin');
+            setIsLocked(!!activeDs?.hasPin && !currentPin);
+
             setLoading(false);
         } catch (error) {
             console.error("Failed to load settings", error);
@@ -42,12 +50,25 @@ const Settings = () => {
 
     const handleCreateDataset = async () => {
         if (!newDatasetName) return;
+        if (newDatasetPin && (newDatasetPin.length !== 4 || isNaN(Number(newDatasetPin)))) {
+            alert("Le code PIN doit comporter 4 chiffres.");
+            return;
+        }
         try {
-            await createDataset(newDatasetName);
+            await createDataset(newDatasetName, newDatasetPin);
             setNewDatasetName('');
+            setNewDatasetPin('');
             loadData();
         } catch (error) {
             alert(t('common.error'));
+        }
+    };
+
+    const handleUnlock = () => {
+        const activeDs = datasets.find(d => d.name === activeDataset);
+        if (activeDs?.hasPin) {
+            sessionStorage.setItem('dataset_pin', unlockPin);
+            window.location.reload();
         }
     };
 
@@ -134,35 +155,82 @@ const Settings = () => {
                     </h2>
 
                     <div className="space-y-4">
-                        <div className="flex space-x-2">
+                        <div className="space-y-2">
                             <input
                                 type="text"
-                                placeholder="Nouveau jeu de données..."
+                                placeholder="Nom du nouveau jeu..."
                                 value={newDatasetName}
                                 onChange={(e) => setNewDatasetName(e.target.value)}
-                                className="flex-1 px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition"
+                                className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition text-sm"
                             />
-                            <button
-                                onClick={handleCreateDataset}
-                                className="p-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition"
-                            >
-                                <Plus className="w-6 h-6" />
-                            </button>
+                            <div className="flex space-x-2">
+                                <input
+                                    type="password"
+                                    maxLength={4}
+                                    placeholder="Code PIN (4 chiffres, optionnel)"
+                                    value={newDatasetPin}
+                                    onChange={(e) => setNewDatasetPin(e.target.value.replace(/\D/g, ''))}
+                                    className="flex-1 px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition text-sm"
+                                />
+                                <button
+                                    onClick={handleCreateDataset}
+                                    className="px-4 bg-green-600 text-white rounded-xl hover:bg-green-700 transition"
+                                >
+                                    <Plus className="w-5 h-5" />
+                                </button>
+                            </div>
                         </div>
+
+                        {isLocked && (
+                            <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
+                                <p className="text-sm text-amber-800 mb-2 flex items-center">
+                                    <Lock className="w-4 h-4 mr-2" />
+                                    Jeu de données verrouillé (Modification impossible)
+                                </p>
+                                <div className="flex space-x-2">
+                                    <input
+                                        type="password"
+                                        maxLength={4}
+                                        placeholder="PIN..."
+                                        value={unlockPin}
+                                        onChange={(e) => setUnlockPin(e.target.value.replace(/\D/g, ''))}
+                                        className="flex-1 px-4 py-2 rounded-xl border border-amber-200 focus:ring-2 focus:ring-amber-500 outline-none transition text-sm"
+                                    />
+                                    <button
+                                        onClick={handleUnlock}
+                                        className="px-4 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition"
+                                    >
+                                        <Unlock className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {!isLocked && activeDataset && datasets.find(d => d.name === activeDataset)?.hasPin && (
+                            <div className="p-4 bg-green-50 rounded-xl border border-green-200">
+                                <p className="text-sm text-green-800 flex items-center">
+                                    <Unlock className="w-4 h-4 mr-2" />
+                                    Jeu de données déverrouillé
+                                </p>
+                            </div>
+                        )}
 
                         <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                             {datasets.map(ds => (
                                 <div
-                                    key={ds}
-                                    onClick={() => handleSwitchDataset(ds)}
+                                    key={ds.name}
+                                    onClick={() => handleSwitchDataset(ds.name)}
                                     className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
-                                        activeDataset === ds
+                                        activeDataset === ds.name
                                         ? 'border-blue-500 bg-blue-50'
                                         : 'border-gray-100 hover:border-blue-200'
                                     }`}
                                 >
-                                    <span className="font-medium text-gray-700">{ds}</span>
-                                    {activeDataset === ds && <Check className="w-5 h-5 text-blue-600" />}
+                                    <div className="flex items-center">
+                                        <span className="font-medium text-gray-700">{ds.name}</span>
+                                        {ds.hasPin && <Lock className="w-3 h-3 ml-2 text-gray-400" />}
+                                    </div>
+                                    {activeDataset === ds.name && <Check className="w-5 h-5 text-blue-600" />}
                                 </div>
                             ))}
                         </div>

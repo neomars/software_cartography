@@ -26,7 +26,7 @@ if (!fs.existsSync(SETTINGS_FILE)) {
     fs.writeFileSync(SETTINGS_FILE, JSON.stringify({ appName: 'Viz3D', activeDataset: 'SDAN', linkOpacity: 50 }, null, 2));
 }
 
-const DEFAULT_DATA = { softwares: [], services: [] };
+const DEFAULT_DATA = { softwares: [], services: [], pin: null };
 
 function getSettings() {
     return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
@@ -63,20 +63,48 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+// PIN Protection Middleware
+const checkPin = (req, res, next) => {
+    // Only protect mutation routes (POST, PUT, DELETE)
+    // EXCEPT for dataset switching and creation
+    const publicPaths = ['/api/datasets', '/api/datasets/active', '/api/settings'];
+    if (publicPaths.includes(req.path)) return next();
+
+    const db = readDB();
+    if (!db.pin) return next();
+
+    const providedPin = req.headers['x-pin'];
+    if (providedPin === db.pin) return next();
+
+    return res.status(403).json({ error: 'PIN required', locked: true });
+};
+
+app.use('/api', (req, res, next) => {
+    if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
+        return checkPin(req, res, next);
+    }
+    next();
+});
+
 // Dataset Management API
 app.get('/api/datasets', (req, res) => {
     const files = fs.readdirSync(DATASETS_DIR);
-    const datasets = files.filter(f => f.endsWith('.json')).map(f => f.replace('.json', ''));
+    const datasets = files.filter(f => f.endsWith('.json')).map(f => {
+        const name = f.replace('.json', '');
+        const data = JSON.parse(fs.readFileSync(path.join(DATASETS_DIR, f), 'utf8'));
+        return { name, hasPin: !!data.pin };
+    });
     const settings = getSettings();
     res.json({ datasets, active: settings.activeDataset });
 });
 
 app.post('/api/datasets', (req, res) => {
-    const { name } = req.body;
+    const { name, pin } = req.body;
     if (!name) return res.status(400).send('Name is required');
     const p = path.join(DATASETS_DIR, `${name}.json`);
     if (fs.existsSync(p)) return res.status(400).send('Dataset already exists');
-    fs.writeFileSync(p, JSON.stringify(DEFAULT_DATA, null, 2));
+    const newData = { ...DEFAULT_DATA, pin: pin || null };
+    fs.writeFileSync(p, JSON.stringify(newData, null, 2));
     res.status(201).json({ name });
 });
 
@@ -442,10 +470,12 @@ app.put('/api/settings', (req, res) => {
 app.get('/api/data', (req, res) => {
     const db = readDB();
     const settings = getSettings();
+    const providedPin = req.headers['x-pin'];
     res.json({
         softwares: db.softwares || [],
         services: db.services || [],
-        settings
+        settings,
+        locked: !!db.pin && providedPin !== db.pin
     });
 });
 
