@@ -75,6 +75,12 @@ Gérez vos données via des tableaux interactifs. Vous pouvez éditer les icône
 Dans les paramètres, vous pouvez créer de nouveaux environnements, importer des fichiers CSV ou changer le jeu de données actif.
 ![Paramètres](client/media/tutorial_settings.png)
 
+### 5. Importation de Données (CSV)
+Vous pouvez importer massivement des logiciels et les lier à des services via un fichier CSV.
+- **Modèle de fichier** : [Télécharger le modèle CSV](/template_import.csv)
+- **Colonnes supportées** : `Logiciel` (nom), `Service` (nom du service parent), `Accès` (Oui/Non), `Description`.
+- L'importation créera automatiquement les liens si le service existe déjà.
+
 ---
 
 <a name="english"></a>
@@ -149,3 +155,9 @@ Manage your data through interactive tables. You can edit icons, criticality (Ti
 ### 4. Dataset Management
 In settings, you can create new environments, import CSV files, or switch the active dataset.
 ![Settings](client/media/tutorial_settings.png)
+
+### 5. Data Import (CSV)
+You can bulk import software and link them to services via a CSV file.
+- **File Template**: [Download CSV Template](/template_import.csv)
+- **Supported Columns**: `Logiciel` (name), `Service` (parent service name), `Accès` (Yes/No), `Description`.
+- The import will automatically create links if the service already exists.

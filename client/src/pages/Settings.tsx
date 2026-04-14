@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getSettings, updateSettings, getDatasets, createDataset, setActiveDataset, importCSV, renameDataset, lockDataset } from '../api';
 import { useTranslation } from '../i18n';
-import { Save, Database, Plus, Check, Upload, Lock, Unlock, Edit2 } from 'lucide-react';
+import { Save, Database, Plus, Check, Upload, Lock, Unlock, Edit2, Download } from 'lucide-react';
 
 const Settings = () => {
     const { t } = useTranslation();
@@ -250,10 +250,20 @@ const Settings = () => {
                             ))}
                         </div>
 
-                        <div className="pt-4 border-t mt-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                {t('common.import')} ({activeDataset})
-                            </label>
+                        <div className="pt-4 border-t mt-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <label className="block text-sm font-medium text-gray-700">
+                                    {t('common.import')} ({activeDataset})
+                                </label>
+                                <a
+                                    href="/template_import.csv"
+                                    download
+                                    className="text-xs flex items-center text-blue-600 hover:text-blue-800 transition-colors font-bold"
+                                >
+                                    <Download className="w-3 h-3 mr-1" />
+                                    Modèle CSV
+                                </a>
+                            </div>
                             <input
                                 type="file"
                                 id="csv-import"
