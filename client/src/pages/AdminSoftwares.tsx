@@ -33,7 +33,7 @@ const AdminSoftwares: React.FC = () => {
             const res = await getAllData();
             setSoftwares(res.data.softwares);
             setServices(res.data.services);
-            setIsLocked(res.data.locked && !sessionStorage.getItem('dataset_pin'));
+            setIsLocked(res.data.locked);
         } catch (error) {
             console.error("Failed to load data", error);
         }
@@ -233,6 +233,7 @@ const AdminSoftwares: React.FC = () => {
                         linkDirectionalParticles={2}
                         linkDirectionalParticleSpeed={0.005}
                         onNodeClick={(node: any) => {
+                            if (isLocked) return;
                             const sw = softwares.find(s => s.id === node.id);
                             if (sw) {
                                 setCurrentSoftware(sw);
@@ -258,8 +259,8 @@ const AdminSoftwares: React.FC = () => {
                                 <div className="flex justify-between items-start">
                                     <div className="flex items-center overflow-hidden">
                                         <div
-                                            className="relative w-12 h-12 border rounded overflow-hidden mr-3 flex-shrink-0 cursor-pointer hover:border-blue-400 transition-colors"
-                                            onClick={() => triggerUpload(sw.id)}
+                                            className={`relative w-12 h-12 border rounded overflow-hidden mr-3 flex-shrink-0 transition-colors ${isLocked ? 'cursor-default' : 'cursor-pointer hover:border-blue-400'}`}
+                                            onClick={() => !isLocked && triggerUpload(sw.id)}
                                             title={t('common.logo')}
                                         >
                                             {sw.logo ? (
@@ -338,8 +339,8 @@ const AdminSoftwares: React.FC = () => {
                                         <td className="px-6 py-4">
                                             <div className="flex items-center justify-center space-x-3">
                                                 <div
-                                                    className="relative w-10 h-10 border border-gray-200 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer hover:border-blue-400 transition-all bg-white shadow-sm"
-                                                    onClick={() => triggerUpload(sw.id)}
+                                                    className={`relative w-10 h-10 border border-gray-200 rounded-lg overflow-hidden flex-shrink-0 transition-all bg-white shadow-sm ${isLocked ? 'cursor-default' : 'cursor-pointer hover:border-blue-400'}`}
+                                                    onClick={() => !isLocked && triggerUpload(sw.id)}
                                                     title={t('common.logo')}
                                                 >
                                                     {sw.logo ? (

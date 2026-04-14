@@ -26,7 +26,7 @@ if (!fs.existsSync(SETTINGS_FILE)) {
     fs.writeFileSync(SETTINGS_FILE, JSON.stringify({ appName: 'Viz3D', activeDataset: 'SDAN', linkOpacity: 50 }, null, 2));
 }
 
-const DEFAULT_DATA = { softwares: [], services: [], pin: null };
+const DEFAULT_DATA = { softwares: [], services: [], locked: false };
 
 function getSettings() {
     return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
@@ -63,25 +63,29 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// PIN Protection Middleware
-const checkPin = (req, res, next) => {
-    // Only protect mutation routes (POST, PUT, DELETE)
-    // EXCEPT for dataset switching and creation
-    const publicPaths = ['/api/datasets', '/api/datasets/active', '/api/settings'];
-    if (publicPaths.includes(req.path)) return next();
+// Dataset Lock Middleware
+const checkLock = (req, res, next) => {
+    // Mutation routes (POST, PUT, DELETE)
+    // EXCEPT for management routes
+    const managementPaths = [
+        '/api/datasets',
+        '/api/datasets/active',
+        '/api/datasets/rename',
+        '/api/datasets/lock',
+        '/api/settings'
+    ];
+    if (managementPaths.includes(req.path)) return next();
 
     const db = readDB();
-    if (!db.pin) return next();
-
-    const providedPin = req.headers['x-pin'];
-    if (providedPin === db.pin) return next();
-
-    return res.status(403).json({ error: 'PIN required', locked: true });
+    if (db.locked) {
+        return res.status(403).json({ error: 'Dataset is locked', locked: true });
+    }
+    next();
 };
 
 app.use('/api', (req, res, next) => {
     if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
-        return checkPin(req, res, next);
+        return checkLock(req, res, next);
     }
     next();
 });
@@ -92,20 +96,47 @@ app.get('/api/datasets', (req, res) => {
     const datasets = files.filter(f => f.endsWith('.json')).map(f => {
         const name = f.replace('.json', '');
         const data = JSON.parse(fs.readFileSync(path.join(DATASETS_DIR, f), 'utf8'));
-        return { name, hasPin: !!data.pin };
+        return { name, locked: !!data.locked };
     });
     const settings = getSettings();
     res.json({ datasets, active: settings.activeDataset });
 });
 
 app.post('/api/datasets', (req, res) => {
-    const { name, pin } = req.body;
+    const { name } = req.body;
     if (!name) return res.status(400).send('Name is required');
     const p = path.join(DATASETS_DIR, `${name}.json`);
     if (fs.existsSync(p)) return res.status(400).send('Dataset already exists');
-    const newData = { ...DEFAULT_DATA, pin: pin || null };
-    fs.writeFileSync(p, JSON.stringify(newData, null, 2));
+    fs.writeFileSync(p, JSON.stringify(DEFAULT_DATA, null, 2));
     res.status(201).json({ name });
+});
+
+app.post('/api/datasets/rename', (req, res) => {
+    const { oldName, newName } = req.body;
+    if (!oldName || !newName) return res.status(400).send('Old and new names are required');
+    const oldPath = path.join(DATASETS_DIR, `${oldName}.json`);
+    const newPath = path.join(DATASETS_DIR, `${newName}.json`);
+
+    if (!fs.existsSync(oldPath)) return res.status(404).send('Dataset not found');
+    if (fs.existsSync(newPath)) return res.status(400).send('New name already exists');
+
+    fs.renameSync(oldPath, newPath);
+
+    // Update settings if it was the active dataset
+    const settings = getSettings();
+    if (settings.activeDataset === oldName) {
+        updateSettings({ activeDataset: newName });
+    }
+
+    res.json({ success: true, name: newName });
+});
+
+app.post('/api/datasets/lock', (req, res) => {
+    const { locked } = req.body;
+    const db = readDB();
+    db.locked = !!locked;
+    writeDB(db);
+    res.json({ locked: db.locked });
 });
 
 app.post('/api/datasets/active', (req, res) => {
@@ -470,12 +501,11 @@ app.put('/api/settings', (req, res) => {
 app.get('/api/data', (req, res) => {
     const db = readDB();
     const settings = getSettings();
-    const providedPin = req.headers['x-pin'];
     res.json({
         softwares: db.softwares || [],
         services: db.services || [],
         settings,
-        locked: !!db.pin && providedPin !== db.pin
+        locked: !!db.locked
     });
 });
 

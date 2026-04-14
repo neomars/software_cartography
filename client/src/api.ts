@@ -70,8 +70,10 @@ export const uploadLogo = (type: 'software' | 'service', id: string, file: File)
 export const getSettings = () => axios.get<Settings>(`${API_BASE_URL}/settings`);
 export const updateSettings = (data: Partial<Settings>) => axios.put<Settings>(`${API_BASE_URL}/settings`, data);
 
-export const getDatasets = () => axios.get<{ datasets: {name: string, hasPin: boolean}[], active: string }>(`${API_BASE_URL}/datasets`);
-export const createDataset = (name: string, pin?: string) => axios.post(`${API_BASE_URL}/datasets`, { name, pin });
+export const getDatasets = () => axios.get<{ datasets: {name: string, locked: boolean}[], active: string }>(`${API_BASE_URL}/datasets`);
+export const createDataset = (name: string) => axios.post(`${API_BASE_URL}/datasets`, { name });
+export const renameDataset = (oldName: string, newName: string) => axios.post(`${API_BASE_URL}/datasets/rename`, { oldName, newName });
+export const lockDataset = (locked: boolean) => axios.post(`${API_BASE_URL}/datasets/lock`, { locked });
 export const setActiveDataset = (name: string) => axios.post(`${API_BASE_URL}/datasets/active`, { name });
 
 export const getAllData = () => axios.get<{ softwares: Software[], services: Service[], settings: Settings, locked: boolean }>(`${API_BASE_URL}/data`);

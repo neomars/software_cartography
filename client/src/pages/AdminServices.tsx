@@ -31,7 +31,7 @@ const AdminServices: React.FC = () => {
             const res = await getAllData();
             setServices(res.data.services);
             setSoftwares(res.data.softwares);
-            setIsLocked(res.data.locked && !sessionStorage.getItem('dataset_pin'));
+            setIsLocked(res.data.locked);
         } catch (error) {
             console.error("Failed to load data", error);
         }
@@ -190,6 +190,7 @@ const AdminServices: React.FC = () => {
                         linkDirectionalParticles={2}
                         linkDirectionalParticleSpeed={0.005}
                         onNodeClick={(node: any) => {
+                            if (isLocked) return;
                             const service = services.find(s => s.id === node.id);
                             if (service) {
                                 setCurrentService(service);
@@ -212,8 +213,8 @@ const AdminServices: React.FC = () => {
                         <div className="flex justify-between items-start">
                             <div className="flex items-center">
                                 <div
-                                    className="relative w-12 h-12 border rounded overflow-hidden mr-3 cursor-pointer hover:border-blue-400 transition-colors"
-                                    onClick={() => document.getElementById(`logo-upload-srv-${service.id}`)?.click()}
+                                    className={`relative w-12 h-12 border rounded overflow-hidden mr-3 transition-colors ${isLocked ? 'cursor-default' : 'cursor-pointer hover:border-blue-400'}`}
+                                    onClick={() => !isLocked && document.getElementById(`logo-upload-srv-${service.id}`)?.click()}
                                     title={t('common.logo')}
                                 >
                                     {service.logo ? (
