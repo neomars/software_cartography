@@ -265,6 +265,7 @@ app.delete('/api/softwares/:id', (req, res) => {
                 }
             });
         }
+
         db.softwares = db.softwares.filter(s => s.id !== req.params.id);
         db.softwares.forEach(sw => { if (sw.children) sw.children = sw.children.filter(childId => childId !== req.params.id); });
         db.services.forEach(service => { service.children = service.children.filter(childId => childId !== req.params.id); });
