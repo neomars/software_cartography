@@ -23,7 +23,7 @@ if (!fs.existsSync(DATASETS_DIR)) fs.mkdirSync(DATASETS_DIR);
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
 
 if (!fs.existsSync(SETTINGS_FILE)) {
-    fs.writeFileSync(SETTINGS_FILE, JSON.stringify({ appName: 'Viz3D', activeDataset: 'SDAN', linkOpacity: 50 }, null, 2));
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify({ appName: 'Cartographie Logicielle', activeDataset: 'exemple', linkOpacity: 50 }, null, 2));
 }
 
 const DEFAULT_DATA = { softwares: [], services: [], locked: false };
@@ -40,7 +40,7 @@ function updateSettings(newSettings) {
 
 function getActiveDatasetPath() {
     const settings = getSettings();
-    const datasetName = settings.activeDataset || 'SDAN';
+    const datasetName = settings.activeDataset || 'exemple';
     return path.join(DATASETS_DIR, `${datasetName}.json`);
 }
 
@@ -65,30 +65,35 @@ const upload = multer({ storage });
 
 // Dataset Lock Middleware
 const checkLock = (req, res, next) => {
-    // Mutation routes (POST, PUT, DELETE)
-    // EXCEPT for management routes
-    const managementPaths = [
-        '/api/datasets',
-        '/api/datasets/active',
-        '/api/datasets/rename',
-        '/api/datasets/lock',
-        '/api/settings'
-    ];
-    if (managementPaths.includes(req.path)) return next();
+    if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
+        // Management paths that should NOT be blocked by a dataset lock
+        // We use req.path which is relative to the /api mount point
+        const path = req.path.toLowerCase();
+        const isManagementPath =
+            path.includes('/datasets') ||
+            path.includes('/settings') ||
+            path.includes('/import-csv') ||
+            path.includes('/upload-logo');
 
-    const db = readDB();
-    if (db.locked) {
-        return res.status(403).json({ error: 'Dataset is locked', locked: true });
+        // However, we ONLY allow /datasets/lock and /datasets/active and /datasets/rename
+        // and global settings.
+        // We SHOULD block /import-csv and /upload-logo if locked!
+
+        const trulyAllowed =
+            path.includes('/datasets') ||
+            path.includes('/settings');
+
+        if (trulyAllowed) return next();
+
+        const db = readDB();
+        if (db.locked) {
+            return res.status(403).json({ error: 'Dataset is locked', locked: true });
+        }
     }
     next();
 };
 
-app.use('/api', (req, res, next) => {
-    if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
-        return checkLock(req, res, next);
-    }
-    next();
-});
+app.use('/api', checkLock);
 
 // Dataset Management API
 app.get('/api/datasets', (req, res) => {

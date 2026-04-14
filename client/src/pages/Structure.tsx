@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { getServices, getSoftwares, updateService, updateSoftware, Service, Software } from '../api';
+import { getServices, getSoftwares, updateService, updateSoftware, Service, Software, getAllData } from '../api';
 import { useTranslation } from '../i18n';
-import { ChevronRight, ChevronDown, Folder, FileText, Move, Network, Search } from 'lucide-react';
+import { ChevronRight, ChevronDown, Folder, FileText, Move, Network, Search, Lock } from 'lucide-react';
 
 interface TreeNode {
     id: string;
@@ -20,6 +20,7 @@ const Structure = () => {
     const [draggedId, setDraggedId] = useState<string | null>(null);
     const [dragOverId, setDragOverId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isLocked, setIsLocked] = useState(false);
 
     const buildTree = useCallback((services: Service[], softwares: Software[]) => {
         const allNodes: TreeNode[] = [
@@ -90,8 +91,9 @@ const Structure = () => {
     const loadData = useCallback(async () => {
         setLoading(true);
         try {
-            const [resSrv, resSw] = await Promise.all([getServices(), getSoftwares()]);
-            setTree(buildTree(resSrv.data, resSw.data));
+            const res = await getAllData();
+            setTree(buildTree(res.data.services, res.data.softwares));
+            setIsLocked(res.data.locked);
         } catch (e) { console.error(e); }
         setLoading(false);
     }, [buildTree]);
@@ -99,17 +101,23 @@ const Structure = () => {
     useEffect(() => { loadData(); }, [loadData]);
 
     const handleDragStart = (e: React.DragEvent, id: string) => {
+        if (isLocked) {
+            e.preventDefault();
+            return;
+        }
         setDraggedId(id);
         e.dataTransfer.setData('text/plain', id);
     };
 
     const handleDragOver = (e: React.DragEvent, targetId: string | null) => {
+        if (isLocked) return;
         e.preventDefault();
         e.stopPropagation();
         setDragOverId(targetId);
     };
 
     const handleDrop = async (e: React.DragEvent, targetId: string | null) => {
+        if (isLocked) return;
         e.preventDefault();
         e.stopPropagation();
         setDragOverId(null);
@@ -163,12 +171,12 @@ const Structure = () => {
         return (
             <div key={node.id} className="select-none">
                 <div
-                    draggable
+                    draggable={!isLocked}
                     onDragStart={(e) => handleDragStart(e, node.id)}
                     onDragOver={(e) => handleDragOver(e, node.id)}
                     onDragLeave={() => setDragOverId(null)}
                     onDrop={(e) => handleDrop(e, node.id)}
-                    className={`flex items-center p-2 rounded-lg transition group hover:bg-gray-100 ${draggedId === node.id ? 'opacity-50' : ''} ${isOver ? 'bg-blue-50 ring-2 ring-blue-500 ring-inset' : ''}`}
+                    className={`flex items-center p-2 rounded-lg transition group ${isLocked ? 'cursor-default' : 'hover:bg-gray-100 cursor-grab'} ${draggedId === node.id ? 'opacity-50' : ''} ${isOver ? 'bg-blue-50 ring-2 ring-blue-500 ring-inset' : ''}`}
                     style={{ paddingLeft: `${level * 20 + 8}px` }}
                 >
                     <button
@@ -195,7 +203,8 @@ const Structure = () => {
                             title={node.isService ? 'Service Color' : 'Belongs to service'}
                         />
 
-                        <Move className="w-4 h-4 ml-auto text-gray-300 opacity-0 group-hover:opacity-100 transition" />
+                        {!isLocked && <Move className="w-4 h-4 ml-auto text-gray-300 opacity-0 group-hover:opacity-100 transition" />}
+                        {isLocked && <Lock className="w-3 h-3 ml-auto text-gray-300" />}
                     </div>
                 </div>
                 {isExpanded && node.children.map(child => renderNode(child, level + 1))}
@@ -222,10 +231,10 @@ const Structure = () => {
             </div>
 
             <div
-                className={`bg-white rounded-2xl shadow-sm border p-6 min-h-[500px] transition ${dragOverId === 'root' ? 'border-blue-500 bg-blue-50/30' : 'border-gray-100'}`}
-                onDragOver={(e) => handleDragOver(e, 'root')}
+                className={`bg-white rounded-2xl shadow-sm border p-6 min-h-[500px] transition ${!isLocked && dragOverId === 'root' ? 'border-blue-500 bg-blue-50/30' : 'border-gray-100'}`}
+                onDragOver={(e) => !isLocked && handleDragOver(e, 'root')}
                 onDragLeave={() => setDragOverId(null)}
-                onDrop={(e) => handleDrop(e, null)}
+                onDrop={(e) => !isLocked && handleDrop(e, null)}
             >
                 <div className="mb-4 text-xs text-gray-400 uppercase font-bold tracking-wider">
                     {t('nav.structure')} (Unified Tree)
