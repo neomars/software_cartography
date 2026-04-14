@@ -6,6 +6,7 @@ export interface Software {
     id: string;
     name: string;
     parent_id: string | null;
+    parent_ids: string[];
     children: string[];
     acces: boolean;
     description: string;
@@ -13,6 +14,8 @@ export interface Software {
     sdan: string;
     ministere: string;
     logo: string | null;
+    icon?: string;
+    criticality?: number;
 }
 
 export interface Service {
@@ -21,11 +24,16 @@ export interface Service {
     color: string;
     children: string[];
     parent_id: string | null;
+    parent_ids: string[];
     logo: string | null;
+    icon?: string;
+    criticality?: number;
 }
 
 export interface Settings {
     appName: string;
+    linkOpacity: number;
+    activeDataset?: string;
 }
 
 export const getSoftwares = () => axios.get<Software[]>(`${API_BASE_URL}/softwares`);
@@ -53,4 +61,10 @@ export const uploadLogo = (type: 'software' | 'service', id: string, file: File)
 export const getSettings = () => axios.get<Settings>(`${API_BASE_URL}/settings`);
 export const updateSettings = (data: Partial<Settings>) => axios.put<Settings>(`${API_BASE_URL}/settings`, data);
 
-export const getAllData = () => axios.get<{ softwares: Software[], services: Service[], settings: Settings }>(`${API_BASE_URL}/data`);
+export const getDatasets = () => axios.get<{ datasets: {name: string, locked: boolean}[], active: string }>(`${API_BASE_URL}/datasets`);
+export const createDataset = (name: string) => axios.post(`${API_BASE_URL}/datasets`, { name });
+export const renameDataset = (oldName: string, newName: string) => axios.post(`${API_BASE_URL}/datasets/rename`, { oldName, newName });
+export const lockDataset = (locked: boolean) => axios.post(`${API_BASE_URL}/datasets/lock`, { locked });
+export const setActiveDataset = (name: string) => axios.post(`${API_BASE_URL}/datasets/active`, { name });
+
+export const getAllData = () => axios.get<{ softwares: Software[], services: Service[], settings: Settings, locked: boolean }>(`${API_BASE_URL}/data`);
