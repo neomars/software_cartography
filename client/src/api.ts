@@ -36,6 +36,15 @@ export interface Settings {
     activeDataset?: string;
 }
 
+// Interceptor to add PIN to requests
+axios.interceptors.request.use(config => {
+    const pin = sessionStorage.getItem('dataset_pin');
+    if (pin) {
+        config.headers['x-pin'] = pin;
+    }
+    return config;
+});
+
 export const getSoftwares = () => axios.get<Software[]>(`${API_BASE_URL}/softwares`);
 export const createSoftware = (data: Partial<Software>) => axios.post<Software>(`${API_BASE_URL}/softwares`, data);
 export const updateSoftware = (id: string, data: Partial<Software>) => axios.put<Software>(`${API_BASE_URL}/softwares/${id}`, data);
