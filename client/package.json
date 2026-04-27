@@ -4,16 +4,16 @@
   "private": true,
   "dependencies": {
     "@tabler/icons-react": "^3.41.1",
-    "axios": "^1.13.4",
+    "axios": "^1.15.2",
     "lucide-react": "^0.563.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-force-graph-2d": "^1.29.1",
     "react-force-graph-3d": "^1.29.1",
-    "react-router-dom": "^7.14.0",
+    "react-router-dom": "^7.14.2",
     "react-scripts": "5.0.1",
-    "three": "^0.183.2",
-    "typescript": "^6.0.2"
+    "three": "^0.184.0",
+    "typescript": "^6.0.3"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -22,10 +22,10 @@
   "devDependencies": {
     "@types/react": "^19.2.13",
     "@types/react-dom": "^19.2.3",
-    "@types/three": "^0.183.1",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.5.9",
-    "tailwindcss": "^4.2.2"
+    "@types/three": "^0.184.0",
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.12",
+    "tailwindcss": "^4.2.4"
   },
   "browserslist": {
     "production": [
